@@ -60,9 +60,21 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
   const [bookingDate, setBookingDate] = useState<string | null>(null);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [lockedSlot, setLockedSlot] = useState<{ slotId: string; date: string; clinicalForm: any } | null>(null);
-  const [formResponses, setFormResponses] = useState<Record<string, any>>({});
   const [selectedSessionType, setSelectedSessionType] = useState<'Video' | 'Voice' | 'Chat'>('Video');
   const [bookingSuccess, setBookingSuccess] = useState<any>(null);
+  const [pendingForms, setPendingForms] = useState<any[]>([]);
+  const [activePendingForm, setActivePendingForm] = useState<any>(null);
+  const [formResponses, setFormResponses] = useState<Record<string, any>>({});
+
+  const fetchPendingForms = async () => {
+    if (!isLoggedIn) return;
+    try {
+      const data = await doctorService.getPendingPatientForms();
+      setPendingForms(data || []);
+    } catch (err) {
+      console.error("Failed to fetch pending forms:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchExperts = async () => {
@@ -95,7 +107,8 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
       }
     };
     fetchExperts();
-  }, []);
+    fetchPendingForms();
+  }, [isLoggedIn]);
 
   const categories = useMemo(() => {
     const cats = new Set(['All']);
@@ -121,8 +134,9 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
 
   const availableDates = useMemo(() => {
     if (!selectedExpert) return [];
+    const today = new Date().toISOString().split('T')[0];
     return selectedExpert.dailySchedules
-      .filter(ds => ds.slots.some(s => s.status === 'available'))
+      .filter(ds => ds.date >= today && ds.slots.some(s => s.status === 'available'))
       .map(ds => ds.date);
   }, [selectedExpert]);
 
@@ -148,14 +162,6 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
         date: bookingDate,
         clinicalForm: result.clinicalForm
       });
-      // Initialize form responses if form exists
-      if (result.clinicalForm) {
-        const initialResponses: Record<string, any> = {};
-        result.clinicalForm.fields?.forEach((field: any) => {
-          initialResponses[field.label] = field.type === 'checkbox' ? false : '';
-        });
-        setFormResponses(initialResponses);
-      }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to reserve slot. It may have been taken.');
     } finally {
@@ -163,29 +169,39 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
     }
   };
 
-  // Step 2: Confirm booking with form data
+  // Step 2: Confirm booking (payment + booking), then form is filled post-booking
   const handleConfirmBooking = async () => {
     if (!selectedExpert || !lockedSlot) return;
 
     setBookingInProgress(true);
     try {
-      const clinicalFormData = lockedSlot.clinicalForm ? {
-        formId: lockedSlot.clinicalForm._id,
-        title: lockedSlot.clinicalForm.title,
-        responses: formResponses
-      } : undefined;
-
       const result = await doctorService.bookSlot(
         selectedExpert.userId,
         lockedSlot.date,
         lockedSlot.slotId,
         selectedSessionType,
-        clinicalFormData
+        true
       );
 
       setBookingSuccess(result);
       setLockedSlot(null);
-      setFormResponses({});
+      await fetchPendingForms();
+
+      if (result?.prerequisiteFormRequired && result?.consultation?.id) {
+        const latestPending = await doctorService.getPendingPatientForms();
+        const target = (latestPending || []).find((f: any) => f.consultationId === result.consultation.id);
+        if (target) {
+          const initial: Record<string, any> = {};
+          (target.form?.fieldsSnapshot || []).forEach((field: any, idx: number) => {
+            const key = field.key || field.label || `field_${idx + 1}`;
+            if (field.type === 'checkbox') initial[key] = false;
+            else if (field.type === 'multiselect') initial[key] = [];
+            else initial[key] = '';
+          });
+          setFormResponses(initial);
+          setActivePendingForm(target);
+        }
+      }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Booking failed. Please try again.');
     } finally {
@@ -203,7 +219,19 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
       console.error('Failed to unlock slot:', err);
     }
     setLockedSlot(null);
-    setFormResponses({});
+  };
+
+  const handleSubmitPendingForm = async () => {
+    if (!activePendingForm?.consultationId) return;
+    try {
+      await doctorService.submitPatientForm(activePendingForm.consultationId, formResponses);
+      setActivePendingForm(null);
+      setFormResponses({});
+      await fetchPendingForms();
+      alert('Prerequisite form submitted successfully.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit form.');
+    }
   };
 
   if (isLoading) return (
@@ -279,6 +307,36 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
                 </div>
               </div>
             </div>
+
+            {pendingForms.length > 0 && (
+              <div className="bg-card-yellow border-4 border-black rounded-[3rem] p-8 shadow-brutalist">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 mb-4">Pending Prerequisite Forms</p>
+                <div className="space-y-3">
+                  {pendingForms.map((item: any) => (
+                    <button
+                      key={item.consultationId}
+                      onClick={() => {
+                        const initial: Record<string, any> = {};
+                        (item.form?.fieldsSnapshot || []).forEach((field: any, idx: number) => {
+                          const key = field.key || field.label || `field_${idx + 1}`;
+                          if (field.type === 'checkbox') initial[key] = false;
+                          else if (field.type === 'multiselect') initial[key] = [];
+                          else initial[key] = '';
+                        });
+                        setFormResponses(initial);
+                        setActivePendingForm(item);
+                      }}
+                      className="w-full text-left bg-white border-2 border-black rounded-2xl p-4 hover:-translate-y-0.5 transition-all"
+                    >
+                      <p className="text-xs font-bold">{item.form?.title || 'Prerequisite Form'}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {item.doctor?.name} • {new Date(item.scheduledTime).toLocaleString()}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Booking Engine */}
             <div className="bg-white dark:bg-card-dark border-4 border-black rounded-[4rem] shadow-brutalist overflow-hidden">
@@ -402,59 +460,16 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
                   </div>
                 </div>
 
-                {/* Clinical Form */}
+                {/* Prerequisite Form Notice */}
                 {lockedSlot.clinicalForm && (
                   <div className="space-y-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">2. Complete Intake Form</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">2. Prerequisite Form</p>
                     <div className="bg-aura-cream p-6 rounded-2xl border-2 border-black space-y-4">
                       <h4 className="font-bold text-lg">{lockedSlot.clinicalForm.title}</h4>
-                      {lockedSlot.clinicalForm.description && (
-                        <p className="text-sm text-gray-600">{lockedSlot.clinicalForm.description}</p>
-                      )}
-                      {lockedSlot.clinicalForm.fields?.map((field: any, idx: number) => (
-                        <div key={idx} className="space-y-2">
-                          <label className="block text-sm font-bold">
-                            {field.label}
-                            {field.required && <span className="text-red-500 ml-1">*</span>}
-                          </label>
-                          {field.type === 'textarea' ? (
-                            <textarea
-                              value={formResponses[field.label] || ''}
-                              onChange={(e) => setFormResponses(prev => ({ ...prev, [field.label]: e.target.value }))}
-                              className="w-full p-3 border-2 border-black rounded-xl resize-none"
-                              rows={3}
-                            />
-                          ) : field.type === 'select' ? (
-                            <select
-                              value={formResponses[field.label] || ''}
-                              onChange={(e) => setFormResponses(prev => ({ ...prev, [field.label]: e.target.value }))}
-                              className="w-full p-3 border-2 border-black rounded-xl"
-                            >
-                              <option value="">Select...</option>
-                              {field.options?.map((opt: string) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </select>
-                          ) : field.type === 'checkbox' ? (
-                            <label className="flex items-center gap-3">
-                              <input
-                                type="checkbox"
-                                checked={formResponses[field.label] || false}
-                                onChange={(e) => setFormResponses(prev => ({ ...prev, [field.label]: e.target.checked }))}
-                                className="w-5 h-5 border-2 border-black rounded"
-                              />
-                              <span className="text-sm">Yes</span>
-                            </label>
-                          ) : (
-                            <input
-                              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                              value={formResponses[field.label] || ''}
-                              onChange={(e) => setFormResponses(prev => ({ ...prev, [field.label]: e.target.value }))}
-                              className="w-full p-3 border-2 border-black rounded-xl"
-                            />
-                          )}
-                        </div>
-                      ))}
+                      <p className="text-sm text-gray-700">
+                        This form will be sent right after payment and booking confirmation.
+                        You can complete it from your pending forms panel.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -472,7 +487,7 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
                     disabled={bookingInProgress}
                     className="flex-1 py-4 px-6 bg-primary text-white border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest shadow-brutalist-sm hover:-translate-y-1 transition-all disabled:opacity-50"
                   >
-                    {bookingInProgress ? 'Confirming...' : 'Confirm Booking'}
+                    {bookingInProgress ? 'Processing...' : 'Pay & Confirm Booking'}
                   </button>
                 </div>
               </div>
@@ -495,6 +510,9 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
                 <p className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-2">Appointment Details</p>
                 <p className="text-lg font-bold">{new Date(bookingSuccess.consultation?.scheduledTime).toLocaleString()}</p>
                 <p className="text-sm text-gray-600">{bookingSuccess.consultation?.sessionType} Session</p>
+                {bookingSuccess.prerequisiteFormRequired && (
+                  <p className="text-xs text-primary font-bold mt-2">Prerequisite form pending. Please submit it before your session.</p>
+                )}
               </div>
               <button
                 onClick={() => { setBookingSuccess(null); setSelectedExpertId(null); setBookingDate(null); }}
@@ -505,26 +523,206 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
             </div>
           </div>
         )}
+
+        {activePendingForm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[3rem] border-4 border-black shadow-brutalist max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-8 bg-black text-white border-b-4 border-black flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-display font-bold">Complete Prerequisite Form</h3>
+                  <p className="text-xs text-white/70 mt-1">{activePendingForm.form?.title}</p>
+                </div>
+                <button
+                  onClick={() => { setActivePendingForm(null); setFormResponses({}); }}
+                  className="w-10 h-10 border-2 border-white rounded-xl flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="p-8 space-y-5">
+                {(activePendingForm.form?.fieldsSnapshot || []).map((field: any, idx: number) => {
+                  const fieldKey = field.key || field.label || `field_${idx + 1}`;
+                  return (
+                    <div key={fieldKey} className="space-y-2">
+                      {field.referenceImage && (
+                        <img
+                          src={field.referenceImage}
+                          alt="Question reference"
+                          className="w-full max-h-48 object-cover rounded-xl border-2 border-black"
+                        />
+                      )}
+                      <label className="text-sm font-bold block">
+                        {field.label}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+
+                      {field.type === 'select' && (
+                        <select
+                          value={formResponses[fieldKey] || ''}
+                          onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                          className="w-full p-3 border-2 border-black rounded-xl"
+                        >
+                          <option value="">Select...</option>
+                          {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      )}
+
+                      {field.type === 'radio' && (
+                        <div className="space-y-2">
+                          {(field.options || []).map((opt: string) => (
+                            <label key={opt} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="radio"
+                                name={`radio_${fieldKey}`}
+                                checked={formResponses[fieldKey] === opt}
+                                onChange={() => setFormResponses(prev => ({ ...prev, [fieldKey]: opt }))}
+                                className="w-4 h-4"
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {field.type === 'multiselect' && (
+                        <div className="space-y-2">
+                          {(field.options || []).map((opt: string) => {
+                            const selected = Array.isArray(formResponses[fieldKey]) && formResponses[fieldKey].includes(opt);
+                            return (
+                              <label key={opt} className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => {
+                                    const current = Array.isArray(formResponses[fieldKey]) ? formResponses[fieldKey] : [];
+                                    const next = selected ? current.filter((v: string) => v !== opt) : [...current, opt];
+                                    setFormResponses(prev => ({ ...prev, [fieldKey]: next }));
+                                  }}
+                                  className="w-4 h-4"
+                                />
+                                <span>{opt}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {field.type === 'checkbox' && (
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(formResponses[fieldKey])}
+                            onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
+                            className="w-5 h-5"
+                          />
+                          <span className="text-sm">Yes</span>
+                        </label>
+                      )}
+
+                      {field.type === 'textarea' && (
+                        <textarea
+                          value={formResponses[fieldKey] || ''}
+                          onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                          rows={4}
+                          minLength={field.minLength ? Number(field.minLength) : undefined}
+                          maxLength={field.maxLength ? Number(field.maxLength) : undefined}
+                          className="w-full p-3 border-2 border-black rounded-xl resize-none"
+                        />
+                      )}
+
+                      {field.type === 'image' && (
+                        <div className="space-y-2">
+                          <input
+                            type="url"
+                            value={formResponses[fieldKey] || ''}
+                            placeholder={field.placeholder || 'https://example.com/photo.jpg'}
+                            onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                            className="w-full p-3 border-2 border-black rounded-xl"
+                          />
+                          <label className="inline-flex items-center gap-2 px-3 py-2 border-2 border-black rounded-xl text-xs font-bold uppercase cursor-pointer bg-white">
+                            Upload Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = () => setFormResponses(prev => ({ ...prev, [fieldKey]: String(reader.result || '') }));
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                          {formResponses[fieldKey] && (
+                            <img src={formResponses[fieldKey]} alt="Uploaded response" className="w-full max-h-48 object-cover rounded-xl border-2 border-black" />
+                          )}
+                        </div>
+                      )}
+
+                      {!['select', 'radio', 'multiselect', 'checkbox', 'textarea', 'image'].includes(field.type) && (
+                        <input
+                          type={
+                            field.type === 'number' ? 'number'
+                              : field.type === 'date' ? 'date'
+                                : field.type === 'email' ? 'email'
+                                  : field.type === 'phone' ? 'tel'
+                                    : field.type === 'url' ? 'url'
+                                      : 'text'
+                          }
+                          value={formResponses[fieldKey] || ''}
+                          placeholder={field.placeholder || ''}
+                          onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                          min={field.type === 'number' && field.min !== undefined ? Number(field.min) : undefined}
+                          max={field.type === 'number' && field.max !== undefined ? Number(field.max) : undefined}
+                          minLength={field.minLength ? Number(field.minLength) : undefined}
+                          maxLength={field.maxLength ? Number(field.maxLength) : undefined}
+                          pattern={field.pattern || (field.type === 'phone' ? '[0-9+()\\-\\s]{7,20}' : undefined)}
+                          className="w-full p-3 border-2 border-black rounded-xl"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={() => { setActivePendingForm(null); setFormResponses({}); }}
+                    className="flex-1 py-3 border-2 border-black rounded-xl font-bold text-xs uppercase"
+                  >
+                    Later
+                  </button>
+                  <button
+                    onClick={handleSubmitPendingForm}
+                    className="flex-1 py-3 bg-primary text-white border-2 border-black rounded-xl font-bold text-xs uppercase"
+                  >
+                    Submit Form
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="pt-24 pb-40 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 selection:bg-primary selection:text-white">
-      <header className="mb-20">
-        <button onClick={onBack} className="flex items-center gap-2 mb-10 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400 hover:text-primary transition-all active:translate-y-1">
+      <header className="mb-10">
+        <button onClick={onBack} className="flex items-center gap-2 mb-6 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400 hover:text-primary transition-all active:translate-y-1">
           <span className="material-symbols-outlined text-sm">west</span> Back to Hub
         </button>
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
-          <div className="max-w-3xl">
-            <div className="inline-block bg-primary text-white px-4 py-1.5 rounded-xl border-2 border-black text-[10px] font-bold uppercase tracking-[0.3em] mb-8">Specialist Directory</div>
-            <h1 className="text-7xl md:text-9xl font-display font-bold text-black leading-[0.85] mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="inline-block bg-primary text-white px-3 py-1 rounded-lg border-2 border-black text-[9px] font-bold uppercase tracking-[0.3em] shrink-0">Specialist Directory</div>
+            <h1 className="text-3xl md:text-4xl font-display font-bold text-black leading-tight">
               Clinical <span className="italic text-primary">Experts.</span>
             </h1>
-            <p className="text-2xl text-gray-500 font-medium italic max-w-2xl leading-relaxed">
-              Vetted professional support for every dimension of your clinical journey.
-            </p>
           </div>
+          <p className="text-sm text-gray-500 font-medium max-w-md leading-relaxed hidden lg:block">
+            Vetted professional support for every dimension of your clinical journey.
+          </p>
         </div>
       </header>
 

@@ -10,6 +10,18 @@ const JournalSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    mood: {
+        type: String,
+        default: ''
+    },
+    tags: {
+        type: [String],
+        default: []
+    },
+    isPrivate: {
+        type: Boolean,
+        default: true
+    },
     aiAnalysis: {
         mood: String,
         score: Number,

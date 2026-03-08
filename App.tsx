@@ -19,6 +19,20 @@ import ForgotPassword from './views/ForgotPassword';
 import CheckEmail from './views/CheckEmail';
 import ResetPassword from './views/ResetPassword';
 import Navbar from './components/Navbar';
+import UserProfileView from './views/UserProfile';
+import BookingManagement from './views/BookingManagement';
+import ConsultationForm from './views/ConsultationForm';
+import WellnessPreferenceForm from './views/WellnessPreferenceForm';
+import MoodTracker from './views/MoodTracker';
+import BreathworkLogForm from './views/BreathworkLogForm';
+import RoutineProgressForm from './views/RoutineProgressForm';
+import SoulFeedInteractForm from './views/SoulFeedInteractForm';
+import DoctorProfileForm from './views/DoctorProfileForm';
+import ClinicalFormTemplate from './views/ClinicalFormTemplate';
+import ConsultationNotes from './views/ConsultationNotes';
+import AvailabilitySlots from './views/AvailabilitySlots';
+import PatientIntakeReview from './views/PatientIntakeReview';
+import DoctorReports from './views/DoctorReports';
 
 const BackgroundAtmosphere: React.FC = () => {
   const elements = useMemo(() => {
@@ -192,7 +206,22 @@ const App: React.FC = () => {
     AppView.COMMUNITY,
     AppView.EXPERTS,
     AppView.RESOURCES,
-    AppView.SOUL_FEED
+    AppView.SOUL_FEED,
+    AppView.USER_PROFILE,
+    AppView.JOURNAL_CRUD,
+    AppView.BOOKING_MANAGEMENT,
+    AppView.CONSULTATION_FORM,
+    AppView.WELLNESS_PREFERENCE,
+    AppView.MOOD_TRACKER,
+    AppView.BREATHWORK_LOG,
+    AppView.ROUTINE_PROGRESS,
+    AppView.SOULFEED_INTERACT,
+    AppView.DOCTOR_PROFILE_FORM,
+    AppView.CLINICAL_FORM_TEMPLATE,
+    AppView.CONSULTATION_NOTES,
+    AppView.AVAILABILITY_SLOTS,
+    AppView.PATIENT_INTAKE_REVIEW,
+    AppView.DOCTOR_REPORTS
   ].includes(currentView);
 
   const renderView = () => {
@@ -204,7 +233,7 @@ const App: React.FC = () => {
         />;
       case AppView.DASHBOARD:
         if (userProfile?.role === 'doctor') {
-          return <DoctorDashboard name={userProfile?.displayName || userProfile?.name || "Doctor"} />;
+          return <DoctorDashboard name={userProfile?.displayName || userProfile?.name || "Doctor"} onNavigate={handleNavigate} />;
         }
         return <Dashboard
           journals={journals}
@@ -215,8 +244,9 @@ const App: React.FC = () => {
         if (userProfile?.role !== 'doctor') {
           return <Landing onStart={() => handleNavigate(AppView.SIGNUP)} onNavigate={handleNavigate} />;
         }
-        return <DoctorDashboard name={userProfile?.displayName || userProfile?.name || "Doctor"} />;
+        return <DoctorDashboard name={userProfile?.displayName || userProfile?.name || "Doctor"} onNavigate={handleNavigate} />;
       case AppView.JOURNAL:
+      case AppView.JOURNAL_CRUD:
         return <Journal onSave={saveJournal} onBack={() => handleNavigate(AppView.DASHBOARD)} isLoggedIn={isLoggedIn} onAuthRequired={() => handleNavigate(AppView.SIGNUP)} />;
       case AppView.CHAT:
         return <Chat history={chatHistory} setHistory={setChatHistory} onBack={() => handleNavigate(AppView.DASHBOARD)} isLoggedIn={isLoggedIn} onAuthRequired={() => handleNavigate(AppView.SIGNUP)} />;
@@ -232,9 +262,72 @@ const App: React.FC = () => {
       case AppView.EXPERTS:
         return <Experts onBack={() => handleNavigate(AppView.DASHBOARD)} isLoggedIn={isLoggedIn} onAuthRequired={() => handleNavigate(AppView.SIGNUP)} />;
       case AppView.RESOURCES:
-        return <WellnessHub onBack={() => handleNavigate(AppView.DASHBOARD)} isLoggedIn={isLoggedIn} />;
+        return <WellnessHub onBack={() => handleNavigate(AppView.DASHBOARD)} isLoggedIn={isLoggedIn} onNavigate={handleNavigate} />;
       case AppView.SOUL_FEED:
-        return <SoulFeed onBack={() => handleNavigate(AppView.DASHBOARD)} />;
+        return <SoulFeed onBack={() => handleNavigate(AppView.DASHBOARD)} onNavigate={handleNavigate} />;
+      case AppView.USER_PROFILE:
+        return <UserProfileView
+          onBack={() => handleNavigate(AppView.DASHBOARD)}
+          onNavigate={handleNavigate}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+          userProfile={userProfile}
+          journals={journals}
+        />;
+      case AppView.WELLNESS_PREFERENCE:
+        return <WellnessPreferenceForm
+          onBack={() => handleNavigate(AppView.RESOURCES)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.MOOD_TRACKER:
+        return <MoodTracker
+          onBack={() => handleNavigate(AppView.RESOURCES)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.BREATHWORK_LOG:
+        return <BreathworkLogForm
+          onBack={() => handleNavigate(AppView.RESOURCES)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.ROUTINE_PROGRESS:
+        return <RoutineProgressForm
+          onBack={() => handleNavigate(AppView.RESOURCES)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.SOULFEED_INTERACT:
+        return <SoulFeedInteractForm
+          onBack={() => handleNavigate(AppView.SOUL_FEED)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.BOOKING_MANAGEMENT:
+        return <BookingManagement
+          onBack={() => handleNavigate(AppView.EXPERTS)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.CONSULTATION_FORM:
+        return <ConsultationForm
+          onBack={() => handleNavigate(AppView.BOOKING_MANAGEMENT)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.DOCTOR_PROFILE_FORM:
+        return <DoctorProfileForm onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
+      case AppView.CLINICAL_FORM_TEMPLATE:
+        return <ClinicalFormTemplate onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
+      case AppView.CONSULTATION_NOTES:
+        return <ConsultationNotes onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
+      case AppView.AVAILABILITY_SLOTS:
+        return <AvailabilitySlots onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
+      case AppView.PATIENT_INTAKE_REVIEW:
+        return <PatientIntakeReview onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
+      case AppView.DOCTOR_REPORTS:
+        return <DoctorReports onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
       case AppView.LOGIN:
         return <Login onNavigate={handleNavigate} onLogin={handleLogin} />;
       case AppView.SIGNUP:
@@ -255,9 +348,11 @@ const App: React.FC = () => {
 
   const navIconClass = (view: AppView) => `p-3 rounded-xl transition-all flex items-center justify-center ${currentView === view ? 'text-primary scale-110' : 'text-black dark:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`;
 
+  const hideAtmosphere = [AppView.CHAT, AppView.EXPERTS, AppView.COMMUNITY].includes(currentView);
+
   return (
     <div className="min-h-screen flex flex-col relative">
-      <BackgroundAtmosphere />
+      {!hideAtmosphere && <BackgroundAtmosphere />}
       <Navbar currentView={currentView} onNavigate={handleNavigate} isLoggedIn={isLoggedIn} userRole={userProfile?.role} />
 
       <main className="flex-grow relative z-10">
@@ -292,6 +387,9 @@ const App: React.FC = () => {
               </button>
               <button onClick={() => handleNavigate(AppView.COMMUNITY)} title="Community" className={navIconClass(AppView.COMMUNITY)}>
                 <span className="material-icons-outlined text-xl">groups</span>
+              </button>
+              <button onClick={() => handleNavigate(AppView.USER_PROFILE)} title="My Profile" className={navIconClass(AppView.USER_PROFILE)}>
+                <span className="material-symbols-outlined text-xl">manage_accounts</span>
               </button>
             </div>
 

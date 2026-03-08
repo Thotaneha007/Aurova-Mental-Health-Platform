@@ -1,7 +1,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { AppView, JournalEntry, Meeting } from '../types';
+import { AppView, JournalEntry } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { doctorService } from '../services/doctorService';
 
 interface DashboardProps {
   journals: JournalEntry[];
@@ -24,40 +25,14 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
   // Calendar State
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(new Date().toISOString().split('T')[0]);
-
-  // Mock data for care team
-  const upcomingMeetings: Meeting[] = [
-    {
-      id: 'm1',
-      doctorName: 'Dr. Sarah Kapur',
-      doctorImg: 'https://i.pravatar.cc/150?u=sarah',
-      date: '2025-05-24',
-      time: '10:30 AM',
-      type: 'Video',
-      status: 'upcoming'
-    },
-    {
-      id: 'm2',
-      doctorName: 'Advait Mehta',
-      doctorImg: 'https://i.pravatar.cc/150?u=advait',
-      date: '2025-05-28',
-      time: '4:00 PM',
-      type: 'Audio',
-      status: 'upcoming'
-    }
-  ];
-
-  const pastMeetings: Meeting[] = [
-    {
-      id: 'm3',
-      doctorName: 'Priya Verma',
-      doctorImg: 'https://i.pravatar.cc/150?u=priya',
-      date: '2025-05-15',
-      time: '11:00 AM',
-      type: 'Video',
-      status: 'completed'
-    }
-  ];
+  const [careHubTab, setCareHubTab] = useState<'appointments' | 'forms'>('appointments');
+  const [pendingForms, setPendingForms] = useState<any[]>([]);
+  const [patientBookings, setPatientBookings] = useState<any[]>([]);
+  const [loadingForms, setLoadingForms] = useState(false);
+  const [selectedPendingForm, setSelectedPendingForm] = useState<any>(null);
+  const [formResponses, setFormResponses] = useState<Record<string, any>>({});
+  const [submittingForm, setSubmittingForm] = useState(false);
+  const [formsSearchQuery, setFormsSearchQuery] = useState('');
 
   // Dynamic Calendar Logic
   const calendarData = useMemo(() => {
@@ -75,11 +50,6 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
 
   const handlePrevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
-
-  const handleDateClick = (day: number) => {
-    const d = new Date(calendarData.year, calendarData.month, day);
-    setSelectedDate(d.toLocaleDateString('en-CA'));
-  };
 
   const quotes = [
     "Healing is not a linear journey, it's a spiral of growth.",
@@ -102,6 +72,136 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
   }, [journals]);
 
   const todayStr = new Date().toLocaleDateString('en-CA');
+
+  const fetchClinicalData = async () => {
+    if (!isLoggedIn) return;
+    try {
+      setLoadingForms(true);
+      const [pending, bookings] = await Promise.all([
+        doctorService.getPendingPatientForms(),
+        doctorService.getPatientBookings()
+      ]);
+      setPendingForms(pending || []);
+      setPatientBookings(bookings || []);
+    } catch (err) {
+      console.error('Failed to fetch patient clinical data:', err);
+    } finally {
+      setLoadingForms(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClinicalData();
+  }, [isLoggedIn]);
+
+  const openPendingForm = (item: any) => {
+    const initial: Record<string, any> = {};
+    (item?.form?.fieldsSnapshot || []).forEach((field: any, idx: number) => {
+      const key = field.key || field.label || `field_${idx + 1}`;
+      if (field.type === 'checkbox') initial[key] = false;
+      else if (field.type === 'multiselect') initial[key] = [];
+      else initial[key] = '';
+    });
+    setFormResponses(initial);
+    setSelectedPendingForm(item);
+  };
+
+  const submitPrerequisiteForm = async () => {
+    if (!selectedPendingForm?.consultationId) return;
+    try {
+      setSubmittingForm(true);
+      await doctorService.submitPatientForm(selectedPendingForm.consultationId, formResponses);
+      setSelectedPendingForm(null);
+      setFormResponses({});
+      await fetchClinicalData();
+      alert('Form submitted successfully.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit form.');
+    } finally {
+      setSubmittingForm(false);
+    }
+  };
+
+  const filteredPendingForms = useMemo(() => {
+    const q = formsSearchQuery.trim().toLowerCase();
+    if (!q) return pendingForms;
+    return pendingForms.filter((item: any) =>
+      String(item?.form?.title || '').toLowerCase().includes(q) ||
+      String(item?.doctor?.name || '').toLowerCase().includes(q) ||
+      String(item?.doctor?.specialization || '').toLowerCase().includes(q) ||
+      String(item?.scheduledTime || '').toLowerCase().includes(q)
+    );
+  }, [pendingForms, formsSearchQuery]);
+
+  const submittedForms = useMemo(
+    () => patientBookings.filter((b: any) => b?.clinicalFormData?.status === 'submitted'),
+    [patientBookings]
+  );
+
+  const filteredSubmittedForms = useMemo(() => {
+    const q = formsSearchQuery.trim().toLowerCase();
+    if (!q) return submittedForms;
+    return submittedForms.filter((booking: any) =>
+      String(booking?.clinicalFormData?.title || '').toLowerCase().includes(q) ||
+      String(booking?.doctor?.name || '').toLowerCase().includes(q) ||
+      String(booking?.doctor?.specialization || '').toLowerCase().includes(q) ||
+      String(booking?.scheduledTime || '').toLowerCase().includes(q)
+    );
+  }, [submittedForms, formsSearchQuery]);
+
+  // Real growth streak — consecutive days with a journal entry ending today
+  const growthStreak = useMemo(() => {
+    if (journals.length === 0) return 0;
+    const journalDates = new Set(journals.map(j => new Date(j.date).toLocaleDateString('en-CA')));
+    let streak = 0;
+    const checkDate = new Date();
+    checkDate.setHours(0, 0, 0, 0);
+    while (true) {
+      const ds = checkDate.toLocaleDateString('en-CA');
+      if (journalDates.has(ds)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [journals]);
+
+  // Real upcoming appointments from patientBookings
+  const upcomingAppointments = useMemo(() => {
+    const now = new Date();
+    return patientBookings
+      .filter((b: any) => new Date(b.scheduledTime) > now && b.status !== 'cancelled')
+      .sort((a: any, b: any) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
+      .slice(0, 5);
+  }, [patientBookings]);
+
+  // Set of YYYY-MM-DD strings that have a booking — for calendar dots
+  const bookingDateSet = useMemo(() => {
+    const s = new Set<string>();
+    patientBookings.forEach((b: any) => {
+      if (b.scheduledTime) s.add(new Date(b.scheduledTime).toLocaleDateString('en-CA'));
+    });
+    return s;
+  }, [patientBookings]);
+
+  // State for calendar day booking detail popup
+  const [calendarPopupDate, setCalendarPopupDate] = useState<string | null>(null);
+  const calendarPopupBookings = useMemo(() => {
+    if (!calendarPopupDate) return [];
+    return patientBookings.filter((b: any) =>
+      b.scheduledTime && new Date(b.scheduledTime).toLocaleDateString('en-CA') === calendarPopupDate
+    );
+  }, [calendarPopupDate, patientBookings]);
+
+  const handleDateClick = (day: number) => {
+    const d = new Date(calendarData.year, calendarData.month, day);
+    const ds = d.toLocaleDateString('en-CA');
+    setSelectedDate(ds);
+    if (bookingDateSet.has(ds)) setCalendarPopupDate(ds);
+    else setCalendarPopupDate(null);
+  };
 
   return (
     <div className="pt-28 pb-40 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-aura-cream dark:bg-background-dark min-h-screen relative overflow-x-hidden">
@@ -130,7 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
           <div className="bg-white dark:bg-card-dark border-2 border-black p-4 rounded-2xl shadow-brutalist-sm flex items-center gap-4 hover:translate-y-[-4px] transition-transform">
             <div className="text-right">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Growth Streak</p>
-              <p className="text-2xl font-display font-bold">12 Days</p>
+                <p className="text-2xl font-display font-bold">{growthStreak} {growthStreak === 1 ? 'Day' : 'Days'}</p>
             </div>
             <div className="w-12 h-12 bg-secondary rounded-full border-2 border-black flex items-center justify-center animate-pulse">
               <span className="material-symbols-outlined text-black font-bold">local_fire_department</span>
@@ -138,6 +238,24 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
           </div>
         </div>
       </header>
+
+      {/* Stats Strip */}
+      <div className="reveal-on-load reveal grid grid-cols-2 sm:grid-cols-4 gap-4 mb-16 relative z-10">
+        {[
+          { label: 'Journals Written', value: journals.length, icon: 'edit_note', color: 'text-primary' },
+          { label: 'Upcoming Sessions', value: upcomingAppointments.length, icon: 'calendar_today', color: 'text-blue-600' },
+          { label: 'Sessions Completed', value: patientBookings.filter((b: any) => b.status === 'completed').length, icon: 'check_circle', color: 'text-green-600' },
+          { label: 'Journal Streak', value: `${growthStreak}d`, icon: 'local_fire_department', color: 'text-orange-500' },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white dark:bg-card-dark border-2 border-black p-5 rounded-3xl shadow-brutalist-sm flex items-center gap-4">
+            <span className={`material-symbols-outlined text-3xl ${stat.color}`}>{stat.icon}</span>
+            <div>
+              <p className="text-2xl font-display font-bold dark:text-white">{stat.value}</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-tight">{stat.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* 2. Primary Tools (Action Cards) */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 relative z-10">
@@ -164,7 +282,7 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
             <div className="w-16 h-16 bg-white border-2 border-black rounded-3xl flex items-center justify-center mb-6 group-hover:-rotate-12 transition-transform shadow-brutalist-sm">
               <span className="material-symbols-outlined text-blue-600 text-3xl font-bold">forum</span>
             </div>
-            <h4 className="text-4xl font-display font-bold text-black mb-4 tracking-tight">Chat with TENA</h4>
+            <h4 className="text-4xl font-display font-bold text-black mb-4 tracking-tight">Chat with Aurova</h4>
             <p className="text-gray-800 leading-relaxed font-medium">Empathetic AI. A silent listener, always here.</p>
           </div>
           <span className="absolute -bottom-10 -right-10 material-symbols-outlined text-[12rem] text-black/5 -rotate-12 pointer-events-none group-hover:scale-110 transition-transform">smart_toy</span>
@@ -253,37 +371,139 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
       {/* 4. Professional Hub & Interactive Calendar */}
       <div className="grid lg:grid-cols-12 gap-8 mb-24 relative z-10">
         <div className="reveal-on-load reveal lg:col-span-8 space-y-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h3 className="text-4xl font-display font-bold dark:text-white">Care Hub</h3>
-            <button onClick={() => onNavigate(AppView.EXPERTS)} className="text-xs font-bold uppercase tracking-widest text-primary border-b-2 border-primary pb-1 hover:text-black transition-colors">
-              Find New Expert
-            </button>
-          </div>
-
-          <div className="grid gap-6">
-            {upcomingMeetings.map((meeting, i) => (
-              <div key={meeting.id} className="reveal-on-load reveal bg-white dark:bg-card-dark border-2 border-black p-8 rounded-[3rem] shadow-brutalist flex flex-col md:flex-row items-center gap-8 group hover:scale-[1.02] transition-all" style={{ transitionDelay: `${i * 150}ms` }}>
-                <div className="w-24 h-24 rounded-3xl border-2 border-black overflow-hidden shadow-brutalist-sm group-hover:rotate-6 transition-transform flex-shrink-0">
-                  <img src={meeting.doctorImg} alt={meeting.doctorName} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-grow text-center md:text-left">
-                  <h5 className="text-2xl font-display font-bold dark:text-white">{meeting.doctorName}</h5>
-                  <p className="text-primary font-bold text-sm uppercase tracking-widest mt-1">{meeting.type} Session</p>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
-                    <span className="flex items-center gap-2 text-[10px] font-bold text-gray-500 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-black/5">
-                      <span className="material-symbols-outlined text-xs">calendar_month</span> {new Date(meeting.date).toLocaleDateString()}
-                    </span>
-                    <span className="flex items-center gap-2 text-[10px] font-bold text-gray-500 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-black/5">
-                      <span className="material-symbols-outlined text-xs">alarm</span> {meeting.time}
-                    </span>
-                  </div>
-                </div>
-                <button className="w-full md:w-auto px-10 py-5 bg-black text-white rounded-[2rem] font-bold uppercase text-xs tracking-widest shadow-retro-white active:translate-y-1 transition-all">
-                  Join Session
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="bg-white dark:bg-card-dark border-2 border-black rounded-2xl p-1 flex">
+                <button
+                  onClick={() => setCareHubTab('appointments')}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${careHubTab === 'appointments' ? 'bg-black text-white' : 'text-gray-500'}`}
+                >
+                  Appointments
+                </button>
+                <button
+                  onClick={() => setCareHubTab('forms')}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${careHubTab === 'forms' ? 'bg-primary text-white' : 'text-gray-500'}`}
+                >
+                  My Prerequisite Forms
                 </button>
               </div>
-            ))}
+              <button onClick={() => onNavigate(AppView.EXPERTS)} className="text-xs font-bold uppercase tracking-widest text-primary border-b-2 border-primary pb-1 hover:text-black transition-colors">
+                Find New Expert
+              </button>
+            </div>
           </div>
+
+          {careHubTab === 'appointments' && (
+            <div className="grid gap-6">
+              {loadingForms ? (
+                <div className="flex items-center gap-3 p-6 bg-white border-2 border-black rounded-3xl">
+                  <span className="material-symbols-outlined animate-pulse text-primary">hourglass_empty</span>
+                  <p className="text-sm font-bold text-gray-500">Loading appointments...</p>
+                </div>
+              ) : upcomingAppointments.length > 0 ? upcomingAppointments.map((booking: any, i: number) => (
+                <div key={booking.id} className="reveal-on-load reveal bg-white dark:bg-card-dark border-2 border-black p-8 rounded-[3rem] shadow-brutalist flex flex-col md:flex-row items-center gap-8 group hover:scale-[1.02] transition-all" style={{ transitionDelay: `${i * 150}ms` }}>
+                  <div className="w-24 h-24 rounded-3xl border-2 border-black overflow-hidden shadow-brutalist-sm group-hover:rotate-6 transition-transform flex-shrink-0 bg-aura-cream flex items-center justify-center">
+                    {booking.doctor?.image
+                      ? <img src={booking.doctor.image} alt={booking.doctor.name} className="w-full h-full object-cover" />
+                      : <span className="material-symbols-outlined text-4xl text-primary">person</span>
+                    }
+                  </div>
+                  <div className="flex-grow text-center md:text-left">
+                    <h5 className="text-2xl font-display font-bold dark:text-white">{booking.doctor?.name || 'Your Doctor'}</h5>
+                    {booking.doctor?.specialization && (
+                      <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-0.5">{booking.doctor.specialization}</p>
+                    )}
+                    <p className="text-primary font-bold text-sm uppercase tracking-widest mt-1">{booking.sessionType || 'Session'}</p>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
+                      <span className="flex items-center gap-2 text-[10px] font-bold text-gray-500 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-black/5">
+                        <span className="material-symbols-outlined text-xs">calendar_month</span>
+                        {new Date(booking.scheduledTime).toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center gap-2 text-[10px] font-bold text-gray-500 bg-gray-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-black/5">
+                        <span className="material-symbols-outlined text-xs">alarm</span>
+                        {new Date(booking.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border-2 border-black ${booking.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-secondary text-black'}`}>
+                    {booking.status || 'upcoming'}
+                  </span>
+                </div>
+              )) : (
+                <div className="bg-white dark:bg-card-dark border-2 border-black p-10 rounded-[3rem] shadow-brutalist text-center">
+                  <span className="material-symbols-outlined text-6xl text-primary/30 mb-4 block">calendar_add_on</span>
+                  <p className="font-display text-xl font-bold mb-3 dark:text-white">No upcoming sessions</p>
+                  <p className="text-gray-400 text-sm mb-6">Book your first session with a mental health expert.</p>
+                  <button
+                    onClick={() => onNavigate(AppView.EXPERTS)}
+                    className="px-8 py-4 bg-primary text-white rounded-2xl border-2 border-black font-bold text-xs uppercase tracking-widest shadow-brutalist-sm hover:-translate-y-1 transition-all"
+                  >
+                    Find an Expert
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {careHubTab === 'forms' && (
+            <div className="space-y-5">
+              <div className="bg-white dark:bg-card-dark border-2 border-black p-4 rounded-[1.5rem] shadow-brutalist-sm">
+                <input
+                  type="text"
+                  value={formsSearchQuery}
+                  onChange={(e) => setFormsSearchQuery(e.target.value)}
+                  placeholder="Search by form, doctor, or date..."
+                  className="w-full h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                />
+              </div>
+
+              <div className="bg-white dark:bg-card-dark border-2 border-black p-6 rounded-[2rem] shadow-brutalist-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Pending Forms</p>
+                {loadingForms ? (
+                  <p className="text-sm text-gray-500">Loading forms...</p>
+                ) : filteredPendingForms.length > 0 ? (
+                  <div className="space-y-3">
+                    {filteredPendingForms.map((item: any) => (
+                      <div key={item.consultationId} className="bg-aura-cream border-2 border-black rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <p className="font-bold">{item.form?.title || 'Prerequisite Form'}</p>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase">{item.doctor?.name} | {new Date(item.scheduledTime).toLocaleString()}</p>
+                        </div>
+                        <button
+                          onClick={() => openPendingForm(item)}
+                          className="px-5 py-3 bg-primary text-white border-2 border-black rounded-xl text-[10px] font-bold uppercase tracking-widest"
+                        >
+                          Fill Now
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    {pendingForms.length > 0 ? 'No pending forms matched your search.' : 'No pending prerequisite forms.'}
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-white dark:bg-card-dark border-2 border-black p-6 rounded-[2rem] shadow-brutalist-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Submitted Forms</p>
+                <div className="space-y-3">
+                  {filteredSubmittedForms.slice(0, 6).map((booking: any) => (
+                    <div key={booking.id} className="border-2 border-black/10 rounded-2xl p-4 bg-white">
+                      <p className="font-bold text-sm">{booking.clinicalFormData?.title || 'Submitted Form'}</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase">{booking.doctor?.name} | {new Date(booking.scheduledTime).toLocaleString()}</p>
+                    </div>
+                  ))}
+                  {filteredSubmittedForms.length === 0 && (
+                    <p className="text-sm text-gray-500">
+                      {submittedForms.length > 0 ? 'No submitted forms matched your search.' : 'No submitted forms yet.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="reveal-on-load reveal lg:col-span-4 space-y-8 [transition-delay:400ms]">
@@ -311,13 +531,13 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
               {calendarData.days.map((day, idx) => {
                 if (day === null) return <div key={`empty-${idx}`} className="aspect-square"></div>;
                 const dateString = `${calendarData.year}-${String(calendarData.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const hasMeeting = upcomingMeetings.some(m => m.date === dateString);
+                const hasBooking = bookingDateSet.has(dateString);
                 const isSelected = selectedDate === dateString;
                 const isToday = todayStr === dateString;
                 return (
                   <button key={`day-${day}`} onClick={() => handleDateClick(day)} className={`aspect-square flex items-center justify-center rounded-xl relative transition-all border-2 ${isSelected ? 'bg-primary text-white border-black shadow-brutalist-sm scale-110 z-10' : isToday ? 'bg-secondary text-black border-black border-dashed' : 'bg-transparent text-gray-500 border-transparent hover:border-black/20 hover:bg-gray-50'}`}>
                     {day}
-                    {hasMeeting && !isSelected && <span className="absolute bottom-1 w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>}
+                    {hasBooking && !isSelected && <span className="absolute bottom-1 w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>}
                   </button>
                 );
               })}
@@ -325,6 +545,230 @@ const Dashboard: React.FC<DashboardProps> = ({ journals, onNavigate, isLoggedIn 
           </div>
         </div>
       </div>
+
+      {/* Calendar booking detail popup */}
+      {calendarPopupDate && calendarPopupBookings.length > 0 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] flex items-end sm:items-center justify-center p-4" onClick={() => setCalendarPopupDate(null)}>
+          <div className="bg-white dark:bg-card-dark border-2 border-black rounded-[2.5rem] shadow-brutalist w-full max-w-md p-8 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-xl font-bold dark:text-white">
+                  {new Date(calendarPopupDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                  {calendarPopupBookings.length} Session{calendarPopupBookings.length > 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={() => setCalendarPopupDate(null)} className="w-9 h-9 border-2 border-black rounded-xl flex items-center justify-center hover:bg-aura-cream transition-colors">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+            {calendarPopupBookings.map((booking: any) => (
+              <div key={booking.id} className="flex items-center gap-4 bg-aura-cream border-2 border-black p-4 rounded-2xl">
+                <div className="w-12 h-12 rounded-2xl border-2 border-black bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {booking.doctor?.image
+                    ? <img src={booking.doctor.image} alt={booking.doctor.name} className="w-full h-full object-cover" />
+                    : <span className="material-symbols-outlined text-primary">person</span>
+                  }
+                </div>
+                <div className="flex-grow">
+                  <p className="font-bold text-sm">{booking.doctor?.name || 'Doctor'}</p>
+                  {booking.doctor?.specialization && <p className="text-[10px] text-gray-500 uppercase font-bold">{booking.doctor.specialization}</p>}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-gray-400">{new Date(booking.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-[10px] font-bold text-gray-300">·</span>
+                    <span className="text-[10px] font-bold text-primary uppercase">{booking.sessionType || 'Session'}</span>
+                  </div>
+                </div>
+                <span className={`text-[9px] font-bold uppercase px-2 py-1 rounded-lg border border-black ${booking.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-secondary text-black'}`}>
+                  {booking.status || 'upcoming'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedPendingForm && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] border-4 border-black shadow-brutalist max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8 bg-black text-white border-b-4 border-black flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-display font-bold">Fill Prerequisite Form</h3>
+                <p className="text-xs text-white/70 mt-1">{selectedPendingForm.form?.title}</p>
+              </div>
+              <button
+                onClick={() => { setSelectedPendingForm(null); setFormResponses({}); }}
+                className="w-10 h-10 border-2 border-white rounded-xl flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-8 space-y-5">
+              {(selectedPendingForm.form?.fieldsSnapshot || []).map((field: any, idx: number) => {
+                const fieldKey = field.key || field.label || `field_${idx + 1}`;
+                return (
+                  <div key={fieldKey} className="space-y-2">
+                    {field.referenceImage && (
+                      <img
+                        src={field.referenceImage}
+                        alt="Question reference"
+                        className="w-full max-h-48 object-cover rounded-xl border-2 border-black"
+                      />
+                    )}
+                    <label className="text-sm font-bold block">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+
+                    {field.type === 'select' && (
+                      <select
+                        value={formResponses[fieldKey] || ''}
+                        onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                        className="w-full p-3 border-2 border-black rounded-xl"
+                      >
+                        <option value="">Select...</option>
+                        {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    )}
+
+                    {field.type === 'radio' && (
+                      <div className="space-y-2">
+                        {(field.options || []).map((opt: string) => (
+                          <label key={opt} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="radio"
+                              name={`radio_${fieldKey}`}
+                              checked={formResponses[fieldKey] === opt}
+                              onChange={() => setFormResponses(prev => ({ ...prev, [fieldKey]: opt }))}
+                              className="w-4 h-4"
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {field.type === 'multiselect' && (
+                      <div className="space-y-2">
+                        {(field.options || []).map((opt: string) => {
+                          const selected = Array.isArray(formResponses[fieldKey]) && formResponses[fieldKey].includes(opt);
+                          return (
+                            <label key={opt} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = Array.isArray(formResponses[fieldKey]) ? formResponses[fieldKey] : [];
+                                  const next = selected ? current.filter((v: string) => v !== opt) : [...current, opt];
+                                  setFormResponses(prev => ({ ...prev, [fieldKey]: next }));
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {field.type === 'checkbox' && (
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formResponses[fieldKey])}
+                          onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
+                          className="w-5 h-5"
+                        />
+                        <span className="text-sm">Yes</span>
+                      </label>
+                    )}
+
+                    {field.type === 'textarea' && (
+                      <textarea
+                        value={formResponses[fieldKey] || ''}
+                        onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                        rows={4}
+                        minLength={field.minLength ? Number(field.minLength) : undefined}
+                        maxLength={field.maxLength ? Number(field.maxLength) : undefined}
+                        className="w-full p-3 border-2 border-black rounded-xl resize-none"
+                      />
+                    )}
+
+                    {field.type === 'image' && (
+                      <div className="space-y-2">
+                        <input
+                          type="url"
+                          value={formResponses[fieldKey] || ''}
+                          placeholder={field.placeholder || 'https://example.com/photo.jpg'}
+                          onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                          className="w-full p-3 border-2 border-black rounded-xl"
+                        />
+                        <label className="inline-flex items-center gap-2 px-3 py-2 border-2 border-black rounded-xl text-xs font-bold uppercase cursor-pointer bg-white">
+                          Upload Photo
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => setFormResponses(prev => ({ ...prev, [fieldKey]: String(reader.result || '') }));
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {formResponses[fieldKey] && (
+                          <img src={formResponses[fieldKey]} alt="Uploaded response" className="w-full max-h-48 object-cover rounded-xl border-2 border-black" />
+                        )}
+                      </div>
+                    )}
+
+                    {!['select', 'radio', 'multiselect', 'checkbox', 'textarea', 'image'].includes(field.type) && (
+                      <input
+                        type={
+                          field.type === 'number' ? 'number'
+                            : field.type === 'date' ? 'date'
+                              : field.type === 'email' ? 'email'
+                                : field.type === 'phone' ? 'tel'
+                                  : field.type === 'url' ? 'url'
+                                    : 'text'
+                        }
+                        value={formResponses[fieldKey] || ''}
+                        placeholder={field.placeholder || ''}
+                        onChange={(e) => setFormResponses(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                        min={field.type === 'number' && field.min !== undefined ? Number(field.min) : undefined}
+                        max={field.type === 'number' && field.max !== undefined ? Number(field.max) : undefined}
+                        minLength={field.minLength ? Number(field.minLength) : undefined}
+                        maxLength={field.maxLength ? Number(field.maxLength) : undefined}
+                        pattern={field.pattern || (field.type === 'phone' ? '[0-9+()\\-\\s]{7,20}' : undefined)}
+                        className="w-full p-3 border-2 border-black rounded-xl"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => { setSelectedPendingForm(null); setFormResponses({}); }}
+                  className="flex-1 py-3 border-2 border-black rounded-xl font-bold text-xs uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitPrerequisiteForm}
+                  disabled={submittingForm}
+                  className="flex-1 py-3 bg-primary text-white border-2 border-black rounded-xl font-bold text-xs uppercase disabled:opacity-60"
+                >
+                  {submittingForm ? 'Submitting...' : 'Submit Form'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 5. Crisis Support (The Safety Net) */}
       <div className="reveal-on-load reveal bg-aura-black p-12 rounded-[5rem] border-4 border-primary shadow-2xl relative overflow-hidden group mb-20">

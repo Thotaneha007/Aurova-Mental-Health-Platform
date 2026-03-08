@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { AppView } from '../types';
 
 interface LegendStory {
   id: string;
@@ -15,9 +16,10 @@ interface LegendStory {
 
 interface SoulFeedProps {
   onBack: () => void;
+  onNavigate?: (view: AppView) => void;
 }
 
-const SoulFeed: React.FC<SoulFeedProps> = ({ onBack }) => {
+const SoulFeed: React.FC<SoulFeedProps> = ({ onBack, onNavigate }) => {
   const [likedStories, setLikedStories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -192,7 +194,9 @@ const SoulFeed: React.FC<SoulFeedProps> = ({ onBack }) => {
             <p className="text-gray-400 max-w-xl mx-auto font-medium px-6">
               Our collection grows as we discover more stories of resilience. If there is an icon who inspires you, let us know.
             </p>
-            <button className="mt-10 px-12 py-5 bg-white text-black border-2 border-black rounded-2xl font-bold uppercase text-xs tracking-[0.2em] shadow-retro hover:scale-105 transition-all">
+            <button
+               onClick={() => onNavigate ? onNavigate(AppView.SOULFEED_INTERACT) : undefined}
+               className="mt-10 px-12 py-5 bg-white text-black border-2 border-black rounded-2xl font-bold uppercase text-xs tracking-[0.2em] shadow-retro hover:scale-105 transition-all">
                Suggest a Soul
             </button>
          </div>

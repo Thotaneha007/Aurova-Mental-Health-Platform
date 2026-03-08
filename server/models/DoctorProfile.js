@@ -2,10 +2,24 @@ const mongoose = require('mongoose');
 
 // Clinical Form Template Schema (forms doctors create for patients to fill)
 const formFieldSchema = new mongoose.Schema({
+    key: { type: String },
     label: { type: String, required: true },
-    type: { type: String, enum: ['text', 'textarea', 'select', 'checkbox', 'number', 'date'], default: 'text' },
+    type: {
+        type: String,
+        enum: ['text', 'textarea', 'select', 'checkbox', 'number', 'date', 'radio', 'multiselect', 'email', 'phone', 'url', 'image'],
+        default: 'text'
+    },
     options: [String], // For select fields
-    required: { type: Boolean, default: false }
+    placeholder: { type: String, default: '' },
+    helpText: { type: String, default: '' },
+    referenceImage: { type: String, default: '' },
+    min: { type: Number },
+    max: { type: Number },
+    minLength: { type: Number },
+    maxLength: { type: Number },
+    pattern: { type: String, default: '' },
+    required: { type: Boolean, default: false },
+    order: { type: Number, default: 0 }
 }, { _id: false });
 
 const clinicalFormTemplateSchema = new mongoose.Schema({
@@ -13,7 +27,8 @@ const clinicalFormTemplateSchema = new mongoose.Schema({
     description: String,
     fields: [formFieldSchema],
     isActive: { type: Boolean, default: true },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 // Slot Schema
@@ -40,7 +55,19 @@ const slotSchema = new mongoose.Schema({
     clinicalFormData: {
         formId: mongoose.Schema.Types.ObjectId,
         title: String,
+        status: {
+            type: String,
+            enum: ['pending', 'submitted', 'not-required'],
+            default: 'not-required'
+        },
+        basicInfo: mongoose.Schema.Types.Mixed,
+        fieldsSnapshot: [mongoose.Schema.Types.Mixed],
         responses: mongoose.Schema.Types.Mixed,
+        submittedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        submittedAt: Date,
         filledAt: Date
     }
 });

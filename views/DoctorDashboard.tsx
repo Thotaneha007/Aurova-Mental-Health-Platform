@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Meeting } from '../types';
+import { Meeting, AppView } from '../types';
 import { doctorService } from '../services/doctorService';
 
 interface Slot {
@@ -27,9 +27,10 @@ interface DailySchedule {
 
 interface DoctorDashboardProps {
   name: string;
+  onNavigate?: (view: AppView) => void;
 }
 
-const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
+const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'schedule' | 'patients' | 'availability'>('schedule');
   const [profile, setProfile] = useState<any>(null);
   const [consultations, setConsultations] = useState<any[]>([]);
@@ -57,6 +58,27 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
     gracePeriod: 5,
     slotDuration: 30
   });
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
+  const [formEditor, setFormEditor] = useState({
+    title: '',
+    description: '',
+    fields: [{
+      key: 'field_1',
+      label: '',
+      type: 'text',
+      required: false,
+      placeholder: '',
+      helpText: '',
+      referenceImage: '',
+      min: '',
+      max: '',
+      minLength: '',
+      maxLength: '',
+      pattern: '',
+      options: ''
+    }] as any[]
+  });
+  const [formSearchQuery, setFormSearchQuery] = useState('');
 
   // Fetch Data
   const fetchData = async () => {
@@ -99,6 +121,182 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
       alert("Failed to update profile.");
     }
   };
+
+  const resetFormEditor = () => {
+    setEditingFormId(null);
+    setFormEditor({
+      title: '',
+      description: '',
+      fields: [{
+        key: 'field_1',
+        label: '',
+        type: 'text',
+        required: false,
+        placeholder: '',
+        helpText: '',
+        referenceImage: '',
+        min: '',
+        max: '',
+        minLength: '',
+        maxLength: '',
+        pattern: '',
+        options: ''
+      }]
+    });
+  };
+
+  const handleAddField = () => {
+    setFormEditor(prev => ({
+      ...prev,
+      fields: [...prev.fields, {
+        key: `field_${prev.fields.length + 1}`,
+        label: '',
+        type: 'text',
+        required: false,
+        placeholder: '',
+        helpText: '',
+        referenceImage: '',
+        min: '',
+        max: '',
+        minLength: '',
+        maxLength: '',
+        pattern: '',
+        options: ''
+      }]
+    }));
+  };
+
+  const updateEditorField = (index: number, patch: Record<string, any>) => {
+    setFormEditor(prev => ({
+      ...prev,
+      fields: prev.fields.map((field: any, idx: number) => idx === index ? { ...field, ...patch } : field)
+    }));
+  };
+
+  const removeEditorField = (index: number) => {
+    setFormEditor(prev => ({
+      ...prev,
+      fields: prev.fields.filter((_: any, idx: number) => idx !== index)
+    }));
+  };
+
+  const handleReferenceImageUpload = (index: number, file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image file.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateEditorField(index, { referenceImage: String(reader.result || '') });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const isChoiceField = (type: string) => ['select', 'radio', 'multiselect'].includes(type);
+
+  const handleSaveForm = async () => {
+    try {
+      const payload = {
+        title: formEditor.title,
+        description: formEditor.description,
+        fields: formEditor.fields.map((f: any, idx: number) => ({
+          key: f.key || `field_${idx + 1}`,
+          label: f.label,
+          type: f.type,
+          placeholder: f.placeholder || '',
+          helpText: f.helpText || '',
+          referenceImage: f.referenceImage || '',
+          min: f.min === '' ? undefined : Number(f.min),
+          max: f.max === '' ? undefined : Number(f.max),
+          minLength: f.minLength === '' ? undefined : Number(f.minLength),
+          maxLength: f.maxLength === '' ? undefined : Number(f.maxLength),
+          pattern: f.pattern || '',
+          required: !!f.required,
+          options: (f.options || '').split(',').map((o: string) => o.trim()).filter(Boolean),
+          order: idx
+        }))
+      };
+
+      if (editingFormId) await doctorService.updateForm(editingFormId, payload);
+      else await doctorService.createForm(payload.title, payload.description, payload.fields);
+
+      await fetchData();
+      resetFormEditor();
+      alert('Form saved successfully.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save form.');
+    }
+  };
+
+  const handleEditForm = (form: any) => {
+    setEditingFormId(form._id);
+    setFormEditor({
+      title: form.title || '',
+      description: form.description || '',
+      fields: (form.fields || []).map((f: any, idx: number) => ({
+        key: f.key || `field_${idx + 1}`,
+        label: f.label || '',
+        type: f.type || 'text',
+        placeholder: f.placeholder || '',
+        helpText: f.helpText || '',
+        referenceImage: f.referenceImage || '',
+        min: f.min ?? '',
+        max: f.max ?? '',
+        minLength: f.minLength ?? '',
+        maxLength: f.maxLength ?? '',
+        pattern: f.pattern || '',
+        required: !!f.required,
+        options: (f.options || []).join(', ')
+      }))
+    });
+  };
+
+  const handleDeleteForm = async (formId: string) => {
+    if (!confirm('Delete this form?')) return;
+    try {
+      await doctorService.deleteForm(formId);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete form.');
+    }
+  };
+
+  const handleActivateForm = async (formId: string) => {
+    try {
+      await doctorService.activateForm(formId);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to activate form.');
+    }
+  };
+
+  const handleDeactivateActiveForm = async () => {
+    try {
+      await doctorService.deactivateForm();
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to deactivate active form.');
+    }
+  };
+
+  const filteredClinicalForms = useMemo(() => {
+    const forms = profile?.clinicalForms || [];
+    const q = formSearchQuery.trim().toLowerCase();
+    if (!q) return forms;
+
+    return forms.filter((form: any) => {
+      const titleMatch = String(form.title || '').toLowerCase().includes(q);
+      const descriptionMatch = String(form.description || '').toLowerCase().includes(q);
+      const fieldMatch = (form.fields || []).some((field: any) =>
+        String(field.label || '').toLowerCase().includes(q) ||
+        String(field.type || '').toLowerCase().includes(q) ||
+        String(field.helpText || '').toLowerCase().includes(q) ||
+        (field.options || []).join(' ').toLowerCase().includes(q)
+      );
+      return titleMatch || descriptionMatch || fieldMatch;
+    });
+  }, [profile, formSearchQuery]);
 
   const handlePrevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
@@ -282,7 +480,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
       <div className="grid lg:grid-cols-12 gap-8">
 
         {/* Profile Card */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-9 space-y-8">
           <div className="bg-white dark:bg-card-dark border-4 border-black p-10 rounded-[3rem] shadow-brutalist relative overflow-hidden">
             <div className="flex flex-col md:flex-row gap-10 items-center md:items-start text-center md:text-left">
               <div className="relative group">
@@ -355,10 +553,387 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
               )}
             </div>
           </div>
+
+          <div className="bg-white dark:bg-card-dark border-4 border-black rounded-[3rem] p-8 shadow-brutalist space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-display font-bold italic">Prerequisite <span className="text-primary not-italic">Forms.</span></h3>
+              <div className="flex items-center gap-2">
+                {profile?.activeFormId ? (
+                  <>
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 border-2 border-black rounded-lg bg-secondary">
+                      Active Form Assigned
+                    </span>
+                    <button
+                      onClick={handleDeactivateActiveForm}
+                      className="px-3 py-1 text-[10px] font-bold uppercase border-2 border-black rounded-lg bg-white"
+                    >
+                      Deactivate
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 border-2 border-black rounded-lg bg-aura-cream">
+                    No Active Form
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-2 border-black rounded-2xl bg-card-yellow">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 mb-1">Current Active Form</p>
+              <p className="text-sm font-bold">
+                {profile?.clinicalForms?.find((f: any) => String(f._id) === String(profile?.activeFormId))?.title || 'None selected'}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={formSearchQuery}
+                onChange={(e) => setFormSearchQuery(e.target.value)}
+                placeholder="Search forms by name, question, type, option..."
+                className="w-full h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {filteredClinicalForms.map((form: any) => (
+                <div key={form._id} className="border-2 border-black rounded-2xl p-4 bg-aura-cream">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold">{form.title}</p>
+                    {String(profile?.activeFormId) === String(form._id) && (
+                      <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 bg-primary text-white border border-black rounded-lg">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mb-3">{(form.fields || []).length} fields</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleActivateForm(form._id)} className="px-3 py-1 text-[10px] font-bold uppercase border-2 border-black rounded-lg bg-secondary">
+                      {String(profile?.activeFormId) === String(form._id) ? 'Assigned' : 'Assign + Activate'}
+                    </button>
+                    <button onClick={() => handleEditForm(form)} className="px-3 py-1 text-[10px] font-bold uppercase border-2 border-black rounded-lg bg-white">Edit</button>
+                    <button onClick={() => handleDeleteForm(form._id)} className="px-3 py-1 text-[10px] font-bold uppercase border-2 border-black rounded-lg bg-white">Delete</button>
+                  </div>
+                </div>
+              ))}
+              {!profile?.clinicalForms?.length && (
+                <div className="md:col-span-2 text-center py-8 border-2 border-dashed border-black/20 rounded-2xl text-sm text-gray-500">
+                  No forms created yet.
+                </div>
+              )}
+              {profile?.clinicalForms?.length > 0 && filteredClinicalForms.length === 0 && (
+                <div className="md:col-span-2 text-center py-8 border-2 border-dashed border-black/20 rounded-2xl text-sm text-gray-500">
+                  No forms matched your search.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t-2 border-black/10 space-y-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                {editingFormId ? 'Update Form' : 'Create Form'}
+              </p>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Form title"
+                  value={formEditor.title}
+                  onChange={e => setFormEditor(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full h-12 px-4 border-2 border-black rounded-2xl text-sm font-bold bg-white"
+                />
+                <textarea
+                  placeholder="Form description"
+                  value={formEditor.description}
+                  onChange={e => setFormEditor(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="w-full p-4 border-2 border-black rounded-2xl text-sm bg-white"
+                />
+                {formEditor.fields.map((field: any, idx: number) => (
+                  <div key={idx} className="p-4 md:p-5 border-2 border-black/15 rounded-2xl bg-[#f8f8f8] space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Question {idx + 1}</p>
+                      <button
+                        type="button"
+                        onClick={() => removeEditorField(idx)}
+                        disabled={formEditor.fields.length <= 1}
+                        className="px-3 py-1 border-2 border-black rounded-lg text-[10px] font-bold uppercase bg-white disabled:opacity-40"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="grid md:grid-cols-12 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Question title"
+                        value={field.label}
+                        onChange={e => updateEditorField(idx, { label: e.target.value })}
+                        className="md:col-span-7 h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                      />
+                      <select
+                        value={field.type}
+                        onChange={e => updateEditorField(idx, { type: e.target.value })}
+                        className="md:col-span-5 h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                      >
+                        <option value="text">Short Text</option>
+                        <option value="textarea">Long Text</option>
+                        <option value="radio">MCQ (Single)</option>
+                        <option value="multiselect">MCQ (Multiple)</option>
+                        <option value="select">Dropdown</option>
+                        <option value="checkbox">Checkbox (Yes/No)</option>
+                        <option value="number">Number</option>
+                        <option value="date">Date</option>
+                        <option value="email">Email</option>
+                        <option value="phone">Phone</option>
+                        <option value="url">URL</option>
+                        <option value="image">Image URL</option>
+                      </select>
+                    </div>
+
+                    {isChoiceField(field.type) ? (
+                      <input
+                        type="text"
+                        placeholder="Options (comma-separated)"
+                        value={field.options}
+                        onChange={e => updateEditorField(idx, { options: e.target.value })}
+                        className="w-full h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                      />
+                    ) : (
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Placeholder text"
+                          value={field.placeholder || ''}
+                          onChange={e => updateEditorField(idx, { placeholder: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Help text (optional)"
+                          value={field.helpText || ''}
+                          onChange={e => updateEditorField(idx, { helpText: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                      </div>
+                    )}
+
+                    {field.type === 'number' && (
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <input
+                          type="number"
+                          placeholder="Min value"
+                          value={field.min ?? ''}
+                          onChange={e => updateEditorField(idx, { min: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max value"
+                          value={field.max ?? ''}
+                          onChange={e => updateEditorField(idx, { max: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                      </div>
+                    )}
+
+                    {['text', 'textarea'].includes(field.type) && (
+                      <div className="grid md:grid-cols-3 gap-3">
+                        <input
+                          type="number"
+                          placeholder="Min chars"
+                          value={field.minLength ?? ''}
+                          onChange={e => updateEditorField(idx, { minLength: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max chars"
+                          value={field.maxLength ?? ''}
+                          onChange={e => updateEditorField(idx, { maxLength: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Pattern regex (optional)"
+                          value={field.pattern || ''}
+                          onChange={e => updateEditorField(idx, { pattern: e.target.value })}
+                          className="h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-12 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Reference image URL (optional)"
+                        value={field.referenceImage || ''}
+                        onChange={e => updateEditorField(idx, { referenceImage: e.target.value })}
+                        className="md:col-span-8 h-11 px-3 border-2 border-black rounded-xl text-sm bg-white"
+                      />
+                      <label className="md:col-span-4 h-11 px-3 border-2 border-black rounded-xl text-sm bg-white flex items-center justify-center cursor-pointer font-bold uppercase text-[10px]">
+                        Upload Image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleReferenceImageUpload(idx, e.target.files?.[0])}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Required</span>
+                      <button
+                        type="button"
+                        onClick={() => updateEditorField(idx, { required: !field.required })}
+                        className={`w-12 h-7 border-2 border-black rounded-full relative transition-colors ${field.required ? 'bg-primary' : 'bg-white'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white border border-black transition-all ${field.required ? 'left-6' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+
+                    <div className="p-3 rounded-xl border border-dashed border-black/25 bg-white/80">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Preview</p>
+                      {field.referenceImage && (
+                        <img
+                          src={field.referenceImage}
+                          alt="Question reference"
+                          className="w-full max-h-52 object-cover rounded-xl border border-black mb-3"
+                        />
+                      )}
+                      <p className="text-sm font-semibold text-black mb-2">{field.label || 'Untitled question'}</p>
+                      {field.type === 'radio' && (
+                        <div className="space-y-2">
+                          {String(field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => (
+                            <label key={opt} className="flex items-center gap-2 text-xs text-gray-700">
+                              <input type="radio" disabled />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                          {!String(field.options || '').trim() && <p className="text-xs text-gray-500">Add options to preview radio choices</p>}
+                        </div>
+                      )}
+
+                      {field.type === 'multiselect' && (
+                        <div className="space-y-2">
+                          {String(field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => (
+                            <label key={opt} className="flex items-center gap-2 text-xs text-gray-700">
+                              <input type="checkbox" disabled />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                          {!String(field.options || '').trim() && <p className="text-xs text-gray-500">Add options to preview multi-choice checkboxes</p>}
+                        </div>
+                      )}
+
+                      {field.type === 'select' && (
+                        <select className="w-full h-10 px-2 border border-black rounded-lg text-xs bg-white" disabled>
+                          <option value="">Select...</option>
+                          {String(field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      )}
+
+                      {field.type === 'textarea' && (
+                        <textarea
+                          className="w-full p-2 border border-black rounded-lg text-xs resize-none bg-white"
+                          rows={3}
+                          placeholder={field.placeholder || 'Long answer text'}
+                          disabled
+                        />
+                      )}
+
+                      {field.type === 'checkbox' && (
+                        <label className="flex items-center gap-2 text-xs text-gray-700">
+                          <input type="checkbox" disabled />
+                          <span>Yes</span>
+                        </label>
+                      )}
+
+                      {!['radio', 'multiselect', 'select', 'textarea', 'checkbox'].includes(field.type) && (
+                        <input
+                          type={
+                            field.type === 'number' ? 'number'
+                              : field.type === 'date' ? 'date'
+                                : field.type === 'email' ? 'email'
+                                  : field.type === 'phone' ? 'tel'
+                                    : field.type === 'url' || field.type === 'image' ? 'url'
+                                      : 'text'
+                          }
+                          className="w-full h-10 px-2 border border-black rounded-lg text-xs bg-white"
+                          placeholder={field.placeholder || 'Short answer'}
+                          disabled
+                        />
+                      )}
+                      {field.type === 'number' && (
+                        <p className="text-[10px] text-gray-500 mt-2">Rules: {field.min !== '' && field.min !== undefined ? `min ${field.min}` : 'no min'} | {field.max !== '' && field.max !== undefined ? `max ${field.max}` : 'no max'}</p>
+                      )}
+                      {['text', 'textarea'].includes(field.type) && (
+                        <p className="text-[10px] text-gray-500 mt-2">Rules: {field.minLength ? `minLength ${field.minLength}` : 'no minLength'} | {field.maxLength ? `maxLength ${field.maxLength}` : 'no maxLength'}{field.pattern ? ` | pattern ${field.pattern}` : ''}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="p-5 border-2 border-black rounded-2xl bg-white space-y-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Full Form Preview</p>
+                  <div className="p-5 border-2 border-black/15 rounded-2xl bg-aura-cream space-y-4">
+                    <h4 className="text-xl font-display font-bold">{formEditor.title || 'Untitled Form'}</h4>
+                    {formEditor.description && <p className="text-sm text-gray-600">{formEditor.description}</p>}
+                    <div className="space-y-4">
+                      {formEditor.fields.map((field: any, idx: number) => (
+                        <div key={`preview_${idx}`} className="p-4 bg-white border border-black/10 rounded-xl space-y-2">
+                          {field.referenceImage && (
+                            <img src={field.referenceImage} alt="Question reference" className="w-full max-h-44 object-cover rounded-lg border border-black/20" />
+                          )}
+                          <p className="text-sm font-bold">
+                            {field.label || `Question ${idx + 1}`}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </p>
+                          {field.helpText && <p className="text-xs text-gray-500">{field.helpText}</p>}
+                          {field.type === 'radio' && (field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => (
+                            <label key={opt} className="flex items-center gap-2 text-sm"><input type="radio" disabled />{opt}</label>
+                          ))}
+                          {field.type === 'multiselect' && (field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => (
+                            <label key={opt} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled />{opt}</label>
+                          ))}
+                          {field.type === 'select' && (
+                            <select className="w-full h-10 px-2 border border-black/20 rounded-lg text-sm bg-white" disabled>
+                              <option value="">Select...</option>
+                              {(field.options || '').split(',').map((opt: string) => opt.trim()).filter(Boolean).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          )}
+                          {field.type === 'textarea' && <textarea rows={3} disabled className="w-full p-2 border border-black/20 rounded-lg text-sm bg-white" placeholder={field.placeholder || 'Long answer'} />}
+                          {field.type === 'checkbox' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled />Yes</label>}
+                          {!['radio', 'multiselect', 'select', 'textarea', 'checkbox'].includes(field.type) && (
+                            <input
+                              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : field.type === 'url' || field.type === 'image' ? 'url' : 'text'}
+                              disabled
+                              className="w-full h-10 px-2 border border-black/20 rounded-lg text-sm bg-white"
+                              placeholder={field.placeholder || 'Short answer'}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={handleAddField} className="px-4 py-2 border-2 border-black rounded-xl text-[10px] font-bold uppercase">Add Field</button>
+                <button onClick={handleSaveForm} className="px-4 py-2 bg-primary text-white border-2 border-black rounded-xl text-[10px] font-bold uppercase">
+                  {editingFormId ? 'Update Form' : 'Create Form'}
+                </button>
+                {editingFormId && (
+                  <button onClick={resetFormEditor} className="px-4 py-2 border-2 border-black rounded-xl text-[10px] font-bold uppercase">Cancel Edit</button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Stats & Reviews Sidebar */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-3 space-y-8">
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-card-blue border-2 border-black p-6 rounded-[2rem] shadow-brutalist flex flex-col items-center justify-center text-center">
               <p className="text-[9px] font-bold text-black/40 uppercase tracking-tighter mb-2">Total Earnings</p>
@@ -531,9 +1106,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
                               )}
                             </div>
 
-                            {isBooked && s.clinicalForm && (
+                            {isBooked && s.clinicalFormData && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedForm(s.clinicalForm); }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedForm(s.clinicalFormData); }}
                                 className="z-20 mt-2 py-1.5 bg-primary text-black text-[8px] font-bold uppercase rounded-lg border border-black shadow-brutalist-sm hover:scale-105 transition-all">
                                 View Clinical Form
                               </button>
@@ -588,7 +1163,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
   );
 
   return (
-    <div className="pt-28 pb-40 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-aura-cream dark:bg-background-dark min-h-screen relative font-sans">
+    <div className="pt-28 pb-40 max-w-[1650px] mx-auto px-4 sm:px-6 lg:px-10 bg-aura-cream dark:bg-background-dark min-h-screen relative font-sans">
 
       {/* Profile Edit Modal */}
       {isEditingProfile && (
@@ -647,7 +1222,7 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
                 <p className="text-xl font-bold">{selectedForm.title || "Pre-Session Assessment"}</p>
               </div>
               <div className="space-y-6">
-                {Object.entries(selectedForm.data || {}).map(([key, value]: [string, any]) => (
+                {Object.entries(selectedForm.responses || {}).map(([key, value]: [string, any]) => (
                   <div key={key}>
                     <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">{key.replace(/_/g, ' ')}</p>
                     <div className="p-6 bg-aura-cream rounded-2xl border-2 border-black italic font-medium">
@@ -656,7 +1231,9 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
                   </div>
                 ))}
               </div>
-              <p className="text-[9px] font-bold text-gray-400 uppercase text-center pt-8 border-t-2 border-black/5">Submitted on {new Date(selectedForm.filledAt).toLocaleString()}</p>
+              <p className="text-[9px] font-bold text-gray-400 uppercase text-center pt-8 border-t-2 border-black/5">
+                Submitted on {selectedForm.submittedAt ? new Date(selectedForm.submittedAt).toLocaleString() : (selectedForm.filledAt ? new Date(selectedForm.filledAt).toLocaleString() : 'Not submitted yet')}
+              </p>
             </div>
           </div>
         </div>
@@ -680,6 +1257,33 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name }) => {
           <button onClick={() => setActiveTab('patients')} className={`px-10 py-5 rounded-[1.8rem] font-bold uppercase text-[10px] tracking-widest transition-all ${activeTab === 'patients' ? 'bg-primary text-white shadow-retro' : 'hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400'}`}>Patient Vault</button>
         </div>
       </header>
+
+      {/* ── Sanhitha's Module Quick-Access ── */}
+      {onNavigate && (
+        <section className="mb-14">
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">grid_view</span> Doctor Modules
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {([
+              { view: AppView.DOCTOR_PROFILE_FORM,    label: 'Profile',          icon: 'badge',            color: 'bg-card-purple' },
+              { view: AppView.CLINICAL_FORM_TEMPLATE, label: 'Clinical Forms',   icon: 'description',      color: 'bg-card-blue' },
+              { view: AppView.CONSULTATION_NOTES,     label: 'Consultation Notes', icon: 'clinical_notes',  color: 'bg-card-green' },
+              { view: AppView.PATIENT_INTAKE_REVIEW,  label: 'Intake Reviews',   icon: 'assignment_ind',   color: 'bg-rose-100' },
+              { view: AppView.DOCTOR_REPORTS,         label: 'Reports',          icon: 'analytics',        color: 'bg-black' },
+            ] as const).map(m => (
+              <button
+                key={m.view}
+                onClick={() => onNavigate(m.view)}
+                className={`${m.color} ${m.color === 'bg-black' ? 'text-white' : 'text-black dark:text-white'} flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 border-black shadow-brutalist-sm hover:shadow-brutalist hover:translate-y-[-2px] active:translate-y-0 transition-all`}
+              >
+                <span className="material-symbols-outlined text-2xl">{m.icon}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest leading-tight text-center">{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <main>
         {activeTab === 'schedule' && renderSchedule()}

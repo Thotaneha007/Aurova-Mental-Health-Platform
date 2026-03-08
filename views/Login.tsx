@@ -32,6 +32,69 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLogin }) => {
     }
   };
 
+  const DEMO_ACCOUNTS = [
+    { label: 'Doctor', type: 'specialist' as const, email: 'demo.doctor@aura.com', password: 'Demo@1234', color: 'bg-blue-600', icon: 'stethoscope', desc: 'Dr. Sanhitha' },
+    { label: 'Patient', type: 'standard' as const, email: 'demo.patient@aura.com', password: 'Demo@1234', color: 'bg-primary', icon: 'person', desc: '25-day history' },
+    { label: 'Anonymous', type: 'incognito' as const, email: 'shadowdemo@anonymous.aura', password: 'Demo@1234', color: 'bg-black', icon: 'sentiment_calm', desc: 'Incognito' },
+  ];
+
+  const ALL_ACCOUNTS = [
+    { num: 1, email: 'demo.patient@aura.com', name: 'Demo Patient', role: 'Patient', color: 'bg-primary' },
+    { num: 2, email: 'demo.doctor@aura.com', name: 'Dr. Sanhitha', role: 'Doctor', color: 'bg-blue-600' },
+    { num: 3, email: 'shadowdemo@anonymous.aura', name: 'Shadow', role: 'Anon', color: 'bg-black' },
+    { num: 4, email: 'patient1@aura.com', name: 'Sattar Sheikh', role: 'Patient', color: 'bg-green-600' },
+    { num: 5, email: 'patient2@aura.com', name: 'Zara Mirza', role: 'Patient', color: 'bg-pink-500' },
+    { num: 6, email: 'patient3@aura.com', name: 'Dev Sharma', role: 'Patient', color: 'bg-amber-600' },
+    { num: 7, email: 'doctor1@aura.com', name: 'Dr. Sanhitha R.', role: 'Doctor', color: 'bg-indigo-600' },
+    { num: 8, email: 'doctor2@aura.com', name: 'Dr. Arjun S.', role: 'Doctor', color: 'bg-cyan-600' },
+  ];
+
+  const handleQuickLogin = async (email: string) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await authService.login(email, 'Demo@1234');
+      onLogin({ ...data.user });
+    } catch {
+      try {
+        const isDoc = email.includes('doctor');
+        const isAnon = email.includes('anonymous');
+        await authService.signup(email, 'Demo@1234', email.split('@')[0], isDoc ? 'doctor' : isAnon ? 'anonymous' : 'user');
+        const data = await authService.login(email, 'Demo@1234');
+        onLogin({ ...data.user });
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Login failed. Is the server running?');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (account: typeof DEMO_ACCOUNTS[number]) => {
+    setError(null);
+    setLoading(true);
+    setAuthType(account.type);
+    setFormData({ identifier: account.email, password: account.password });
+    try {
+      // Try login first
+      const data = await authService.login(account.email, account.password);
+      onLogin({ ...data.user });
+    } catch {
+      // Account doesn't exist yet — auto-register then login
+      try {
+        const roleMap = { specialist: 'doctor', standard: 'user', incognito: 'anonymous' } as const;
+        const nameMap = { specialist: 'Dr. Demo', standard: 'Demo Patient', incognito: 'Shadow Demo' } as const;
+        await authService.signup(account.email, account.password, nameMap[account.type], roleMap[account.type]);
+        const data = await authService.login(account.email, account.password);
+        onLogin({ ...data.user });
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Could not create demo account. Check server connection.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setError(null);
     setLoading(true);
@@ -92,6 +155,50 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLogin }) => {
             <span>Login with Google</span>
           </button>
         )}
+
+        {/* ── Quick Demo Login ── */}
+        <div className="bg-white dark:bg-card-dark border-2 border-black rounded-3xl p-5 shadow-retro">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">bolt</span> Quick Demo Login
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {DEMO_ACCOUNTS.map(acc => (
+              <button
+                key={acc.label}
+                type="button"
+                disabled={loading}
+                onClick={() => handleDemoLogin(acc)}
+                className={`${acc.color} text-white flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-2xl border-2 border-black shadow-retro hover:translate-y-[-2px] active:translate-y-0 transition-all text-center disabled:opacity-50`}
+              >
+                <span className="material-symbols-outlined text-xl">{acc.icon}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest leading-tight">{acc.label}</span>
+                <span className="text-[8px] opacity-75 font-medium leading-tight">{acc.desc}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[9px] text-gray-400 mt-3 leading-relaxed">
+            Demo accounts are pre-seeded for evaluation. Credentials auto-fill and sign you in.
+          </p>
+          <div className="mt-4 pt-4 border-t border-black/5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-gray-300 mb-2">All Seeded Accounts — 1 Click</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {ALL_ACCOUNTS.map(acc => (
+                <button
+                  key={acc.num}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleQuickLogin(acc.email)}
+                  className={`${acc.color} text-white rounded-xl py-2 px-1 text-center border border-black/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50`}
+                >
+                  <span className="text-lg font-black block leading-none">{acc.num}</span>
+                  <span className="text-[7px] font-bold uppercase tracking-wider opacity-80 block mt-0.5 truncate">{acc.name.split(' ')[0]}</span>
+                  <span className="text-[6px] font-bold uppercase tracking-widest opacity-50 block">{acc.role}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[8px] text-gray-300 mt-2 text-center">Password for all: Demo@1234</p>
+          </div>
+        </div>
 
         <div className="flex items-center gap-4 py-2">
           <div className="h-0.5 flex-grow bg-black/10 dark:bg-white/10"></div>

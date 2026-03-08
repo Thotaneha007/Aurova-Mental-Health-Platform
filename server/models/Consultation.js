@@ -4,7 +4,7 @@ const consultationSchema = new mongoose.Schema({
     doctorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: false
     },
     patientId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -32,7 +32,19 @@ const consultationSchema = new mongoose.Schema({
     clinicalFormData: {
         formId: mongoose.Schema.Types.ObjectId,
         title: String,
+        status: {
+            type: String,
+            enum: ['pending', 'submitted', 'not-required'],
+            default: 'not-required'
+        },
+        basicInfo: mongoose.Schema.Types.Mixed,
+        fieldsSnapshot: [mongoose.Schema.Types.Mixed],
         responses: mongoose.Schema.Types.Mixed,
+        submittedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        submittedAt: Date,
         filledAt: Date
     },
     // Doctor's notes after consultation
@@ -46,7 +58,7 @@ const consultationSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-consultationSchema.pre('save', async function () {
+consultationSchema.pre('save', async function() {
     this.updatedAt = new Date();
 });
 

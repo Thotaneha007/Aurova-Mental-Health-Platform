@@ -221,19 +221,23 @@ const Community: React.FC<CommunityProps> = ({ onBack, isLoggedIn, onAuthRequire
 
   return (
     <div className="pt-24 pb-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      <header className="mb-16 reveal-comm reveal">
-        <button onClick={onBack} className="flex items-center gap-2 mb-8 text-sm font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-primary transition-colors active:translate-y-1">
+      <header className="mb-8 reveal-comm reveal">
+        <button onClick={onBack} className="flex items-center gap-2 mb-5 text-sm font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-primary transition-colors active:translate-y-1">
           <span className="material-symbols-outlined text-sm">arrow_back</span> Back
         </button>
-        <div className="flex flex-col md:flex-row items-baseline justify-between gap-6">
-          <h1 className="text-6xl md:text-8xl font-display font-bold dark:text-white leading-none">Circle <span className="text-primary italic">Support.</span></h1>
-          
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl md:text-4xl font-display font-bold dark:text-white leading-tight">Circle <span className="text-primary italic">Support.</span></h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed hidden md:block">
+              Anonymous spaces for shared healing.
+            </p>
+          </div>
           <div className="flex items-center gap-3 shrink-0">
-             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sort Topics</span>
+             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sort</span>
              <select 
                value={sortBy}
                onChange={(e) => setSortBy(e.target.value as any)}
-               className="h-12 px-6 bg-white dark:bg-white/5 border-2 border-black rounded-2xl font-bold text-xs uppercase tracking-widest focus:ring-0 focus:border-primary transition-all cursor-pointer shadow-brutalist-sm"
+               className="h-10 px-4 bg-white dark:bg-white/5 border-2 border-black rounded-xl font-bold text-xs uppercase tracking-widest focus:ring-0 focus:border-primary transition-all cursor-pointer shadow-brutalist-sm"
              >
                <option value="default">Relevance</option>
                <option value="members">Active Now</option>
@@ -241,9 +245,6 @@ const Community: React.FC<CommunityProps> = ({ onBack, isLoggedIn, onAuthRequire
              </select>
           </div>
         </div>
-        <p className="text-xl text-gray-500 dark:text-gray-400 max-w-3xl mt-6 leading-relaxed">
-          Anonymous spaces for shared healing. Find your tribe based on shared mental health journeys, without ever revealing who you are.
-        </p>
       </header>
 
       {/* Circle Support Discovery Grid */}

@@ -63,6 +63,9 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, isLoggedIn, us
                   <button onClick={() => onNavigate(AppView.REPORTS)} className={linkClasses(AppView.REPORTS)}>
                     Reports {activeIndicator(AppView.REPORTS)}
                   </button>
+                  <button onClick={() => onNavigate(AppView.USER_PROFILE)} className={linkClasses(AppView.USER_PROFILE)}>
+                    Profile {activeIndicator(AppView.USER_PROFILE)}
+                  </button>
                 </>
               )
             ) : (

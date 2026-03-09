@@ -6,7 +6,7 @@ export const sarvamService = {
    */
   async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
     const form = new FormData();
-    form.append('file', audioBlob, 'audio.wav');
+    form.append('file', audioBlob, 'recording.wav');
     if (language) form.append('language_code', language);
 
     const response = await fetch(`${API_URL}/stt`, {

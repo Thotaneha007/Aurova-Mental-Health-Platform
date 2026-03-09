@@ -67,6 +67,22 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
   const [activePendingForm, setActivePendingForm] = useState<any>(null);
   const [formResponses, setFormResponses] = useState<Record<string, any>>({});
 
+  // Patient booking form fields
+  const [patientName, setPatientName] = useState('');
+  const [patientAge, setPatientAge] = useState('');
+  const [patientGender, setPatientGender] = useState('');
+  const [patientPhone, setPatientPhone] = useState('');
+  const [patientEmail, setPatientEmail] = useState('');
+  const [bookingReason, setBookingReason] = useState('');
+  const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingFormStep, setBookingFormStep] = useState<1 | 2>(1);
+
+  const resetBookingForm = () => {
+    setPatientName(''); setPatientAge(''); setPatientGender('');
+    setPatientPhone(''); setPatientEmail('');
+    setBookingReason(''); setBookingNotes(''); setBookingFormStep(1);
+  };
+
   const fetchPendingForms = async () => {
     if (!isLoggedIn) return;
     try {
@@ -163,6 +179,7 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
         date: bookingDate,
         clinicalForm: result.clinicalForm
       });
+      resetBookingForm();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to reserve slot. It may have been taken.');
     } finally {
@@ -220,7 +237,10 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
       console.error('Failed to unlock slot:', err);
     }
     setLockedSlot(null);
+    resetBookingForm();
   };
+
+  const isPatientFormValid = patientName.trim().length >= 2 && patientAge.trim() !== '' && patientGender !== '' && bookingReason.trim().length >= 3;
 
   const handleSubmitPendingForm = async () => {
     if (!activePendingForm?.consultationId) return;
@@ -399,164 +419,162 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
               </div>
             </div>
 
-            {/* Reviews Section */}
-            <div className="space-y-8">
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400 mb-8 border-b-2 border-black/5 pb-4">Clinical Testimonials</p>
-              {selectedExpert.reviews.length > 0 ? (
-                <div className="grid md:grid-cols-2 gap-8">
-                  {selectedExpert.reviews.map((rev, i) => (
-                    <div key={i} className="bg-aura-cream p-8 rounded-[2.5rem] border-2 border-black shadow-brutalist-sm relative group">
-                      <div className="flex justify-between items-start mb-6">
-                        <div>
-                          <p className="font-bold text-sm">{rev.patientName || 'Anonymous'}</p>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{new Date(rev.date).toLocaleDateString()}</p>
-                        </div>
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <span key={s} className="material-symbols-outlined text-xs text-secondary font-bold">{s <= rev.rating ? 'star' : 'star_outline'}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 leading-relaxed italic">"{rev.comment}"</p>
-                      <span className="material-symbols-outlined absolute -bottom-2 -right-2 text-black/5 text-6xl group-hover:text-primary/10 transition-colors">format_quote</span>
+            {/* Analytics & Reviews — side by side */}
+            <div className="grid lg:grid-cols-2 gap-10">
+              {/* LEFT: Performance Analytics */}
+              <div className="space-y-6">
+                <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400 border-b-2 border-black/5 pb-4">Performance Analytics</p>
+                
+                {/* Summary Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  {(() => {
+                    const hash = (selectedExpert.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+                    const totalPatients = 120 + (hash % 180);
+                    const avgRating = selectedExpert.rating || (3.8 + (hash % 12) / 10);
+                    const repeatRate = 62 + (hash % 28);
+                    return [
+                      { val: totalPatients.toString(), label: 'Total Patients', icon: 'group', color: 'bg-card-blue' },
+                      { val: avgRating.toFixed(1), label: 'Avg Rating', icon: 'star', color: 'bg-card-yellow' },
+                      { val: `${repeatRate}%`, label: 'Repeat Rate', icon: 'autorenew', color: 'bg-card-orange' },
+                    ];
+                  })().map(s => (
+                    <div key={s.label} className={`${s.color} p-4 rounded-2xl border-2 border-black shadow-brutalist-sm text-center`}>
+                      <span className="material-symbols-outlined text-lg text-black">{s.icon}</span>
+                      <p className="text-xl font-display font-bold">{s.val}</p>
+                      <p className="text-[7px] font-bold uppercase tracking-widest text-black/60">{s.label}</p>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="py-12 text-center opacity-40">
-                  <p className="text-sm font-bold italic">No review records found for this clinical branch yet.</p>
-                </div>
-              )}
-            </div>
 
-            {/* Doctor Analytics — Patient Volume & Feedback */}
-            <div className="space-y-8">
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400 mb-4 border-b-2 border-black/5 pb-4">Performance Analytics</p>
-              
-              {/* Summary Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                {(() => {
-                  const hash = (selectedExpert.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-                  const totalPatients = 120 + (hash % 180);
-                  const avgRating = selectedExpert.rating || (3.8 + (hash % 12) / 10);
-                  const repeatRate = 62 + (hash % 28);
-                  return [
-                    { val: totalPatients.toString(), label: 'Total Patients', icon: 'group', color: 'bg-card-blue' },
-                    { val: avgRating.toFixed(1), label: 'Avg Rating', icon: 'star', color: 'bg-card-yellow' },
-                    { val: `${repeatRate}%`, label: 'Repeat Rate', icon: 'autorenew', color: 'bg-card-orange' },
-                  ];
-                })().map(s => (
-                  <div key={s.label} className={`${s.color} p-5 rounded-2xl border-2 border-black shadow-brutalist-sm text-center`}>
-                    <span className="material-symbols-outlined text-xl text-black">{s.icon}</span>
-                    <p className="text-2xl font-display font-bold">{s.val}</p>
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-black/60">{s.label}</p>
+                {/* Patient Volume + Feedback Line Chart */}
+                <div className="bg-white dark:bg-card-dark border-2 border-black rounded-[2rem] p-6 shadow-brutalist">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h4 className="text-sm font-display font-bold">Patient Volume & Feedback</h4>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Last 6 months</p>
+                    </div>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded-full border border-green-200">↑ Trending Up</span>
                   </div>
-                ))}
-              </div>
-
-              {/* Patient Volume + Feedback Line Chart */}
-              <div className="bg-white dark:bg-card-dark border-2 border-black rounded-[2.5rem] p-8 shadow-brutalist">
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <h4 className="text-lg font-display font-bold">Patient Volume & Feedback</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Last 6 months</p>
-                  </div>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full border border-green-200">↑ Trending Up</span>
-                </div>
-                <svg viewBox="0 0 500 220" className="w-full h-52">
-                  <defs>
-                    <linearGradient id={`volGrad-${selectedExpert.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.15" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {/* Grid lines */}
-                  {[0,1,2,3,4].map(i => <line key={i} x1="50" y1={30+i*42} x2="470" y2={30+i*42} stroke="#f3f4f6" strokeWidth="1" />)}
-                  {/* Month labels */}
-                  {(() => {
-                    const months = ['Sep','Oct','Nov','Dec','Jan','Feb'];
-                    return months.map((m, i) => (
-                      <text key={m} x={85 + i * 76} y="210" textAnchor="middle" className="text-[10px] fill-gray-400 font-bold">{m}</text>
-                    ));
-                  })()}
-                  {/* Y-axis labels */}
-                  {['40','30','20','10','0'].map((v, i) => (
-                    <text key={v} x="42" y={35+i*42} textAnchor="end" className="text-[9px] fill-gray-400 font-bold">{v}</text>
-                  ))}
-                  {/* Patient volume bars */}
-                  {(() => {
-                    const hash = (selectedExpert.id || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
-                    const volumes = [14+hash%8, 18+hash%6, 22+hash%5, 20+hash%7, 26+hash%4, 32+hash%6];
-                    return volumes.map((v, i) => {
-                      const barH = (v / 40) * 168;
-                      return (
-                        <g key={i}>
-                          <rect x={70 + i * 76} y={198 - barH} width="30" height={barH} rx="6" fill="#3B82F6" opacity="0.2" />
-                          <rect x={70 + i * 76} y={198 - barH} width="30" height={barH} rx="6" fill="url(#volGrad-${selectedExpert.id})" stroke="#3B82F6" strokeWidth="1.5" />
-                          <text x={85 + i * 76} y={192 - barH} textAnchor="middle" className="text-[9px] fill-blue-600 font-bold">{v}</text>
-                        </g>
-                      );
-                    });
-                  })()}
-                  {/* Feedback rating line (overlaid) */}
-                  {(() => {
-                    const hash = (selectedExpert.id || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
-                    const ratings = [3.6+hash%4/10, 3.8+hash%3/10, 4.0+hash%2/10, 4.1+hash%3/10, 4.3+hash%2/10, 4.5+hash%2/10];
-                    const points = ratings.map((r, i) => {
-                      const x = 85 + i * 76;
-                      const y = 198 - ((r / 5) * 168);
-                      return `${x},${y}`;
-                    });
-                    const circles = ratings.map((r, i) => ({
-                      x: 85 + i * 76,
-                      y: 198 - ((r / 5) * 168),
-                      r: r,
-                    }));
-                    return (
-                      <>
-                        <polyline points={points.join(' ')} fill="none" stroke="#FF7D44" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                        {circles.map((c, i) => (
+                  <svg viewBox="0 0 500 220" className="w-full h-44">
+                    <defs>
+                      <linearGradient id={`volGrad-${selectedExpert.id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[0,1,2,3,4].map(i => <line key={i} x1="50" y1={30+i*42} x2="470" y2={30+i*42} stroke="#f3f4f6" strokeWidth="1" />)}
+                    {(() => {
+                      const months = ['Sep','Oct','Nov','Dec','Jan','Feb'];
+                      return months.map((m, i) => (
+                        <text key={m} x={85 + i * 76} y="210" textAnchor="middle" className="text-[10px] fill-gray-400 font-bold">{m}</text>
+                      ));
+                    })()}
+                    {['40','30','20','10','0'].map((v, i) => (
+                      <text key={v} x="42" y={35+i*42} textAnchor="end" className="text-[9px] fill-gray-400 font-bold">{v}</text>
+                    ))}
+                    {(() => {
+                      const hash = (selectedExpert.id || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+                      const volumes = [14+hash%8, 18+hash%6, 22+hash%5, 20+hash%7, 26+hash%4, 32+hash%6];
+                      return volumes.map((v, i) => {
+                        const barH = (v / 40) * 168;
+                        return (
                           <g key={i}>
-                            <circle cx={c.x} cy={c.y} r="5" fill="white" stroke="#FF7D44" strokeWidth="2.5" />
-                            <text x={c.x + 12} y={c.y + 4} className="text-[8px] fill-primary font-bold">{c.r.toFixed(1)}</text>
+                            <rect x={70 + i * 76} y={198 - barH} width="30" height={barH} rx="6" fill="#3B82F6" opacity="0.2" />
+                            <rect x={70 + i * 76} y={198 - barH} width="30" height={barH} rx="6" fill={`url(#volGrad-${selectedExpert.id})`} stroke="#3B82F6" strokeWidth="1.5" />
+                            <text x={85 + i * 76} y={192 - barH} textAnchor="middle" className="text-[9px] fill-blue-600 font-bold">{v}</text>
                           </g>
-                        ))}
-                      </>
-                    );
-                  })()}
-                </svg>
-                <div className="flex gap-6 justify-center mt-2">
-                  <span className="flex items-center gap-2 text-xs font-bold"><span className="w-3 h-3 bg-blue-500/30 rounded border border-blue-500"></span> Patient Volume</span>
-                  <span className="flex items-center gap-2 text-xs font-bold"><span className="w-3 h-3 bg-primary rounded-full"></span> Feedback Rating</span>
+                        );
+                      });
+                    })()}
+                    {(() => {
+                      const hash = (selectedExpert.id || '').split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+                      const ratings = [3.6+hash%4/10, 3.8+hash%3/10, 4.0+hash%2/10, 4.1+hash%3/10, 4.3+hash%2/10, 4.5+hash%2/10];
+                      const points = ratings.map((r, i) => {
+                        const x = 85 + i * 76;
+                        const y = 198 - ((r / 5) * 168);
+                        return `${x},${y}`;
+                      });
+                      const circles = ratings.map((r, i) => ({
+                        x: 85 + i * 76,
+                        y: 198 - ((r / 5) * 168),
+                        r: r,
+                      }));
+                      return (
+                        <>
+                          <polyline points={points.join(' ')} fill="none" stroke="#FF7D44" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          {circles.map((c, i) => (
+                            <g key={i}>
+                              <circle cx={c.x} cy={c.y} r="5" fill="white" stroke="#FF7D44" strokeWidth="2.5" />
+                              <text x={c.x + 12} y={c.y + 4} className="text-[8px] fill-primary font-bold">{c.r.toFixed(1)}</text>
+                            </g>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </svg>
+                  <div className="flex gap-4 justify-center mt-1">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold"><span className="w-2.5 h-2.5 bg-blue-500/30 rounded border border-blue-500"></span> Patient Volume</span>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold"><span className="w-2.5 h-2.5 bg-primary rounded-full"></span> Feedback Rating</span>
+                  </div>
+                </div>
+
+                {/* Monthly Satisfaction Breakdown */}
+                <div className="bg-aura-cream dark:bg-card-dark border-2 border-black rounded-[1.5rem] p-6 shadow-brutalist-sm">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-black/60 mb-4">Patient Satisfaction Breakdown</h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Communication & Empathy', pct: 96 },
+                      { label: 'Treatment Effectiveness', pct: 88 },
+                      { label: 'Appointment Punctuality', pct: 92 },
+                      { label: 'Follow-up Care', pct: 84 },
+                      { label: 'Overall Experience', pct: 91 },
+                    ].map((item, i) => {
+                      const hash = (selectedExpert.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+                      const adjusted = Math.max(60, Math.min(99, item.pct + (hash + i * 3) % 10 - 4));
+                      return (
+                        <div key={item.label}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[11px] font-bold text-gray-700">{item.label}</span>
+                            <span className="text-[11px] font-bold text-primary">{adjusted}%</span>
+                          </div>
+                          <div className="h-2.5 bg-white rounded-full border border-black/10 overflow-hidden">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${adjusted}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Monthly Satisfaction Breakdown */}
-              <div className="bg-aura-cream dark:bg-card-dark border-2 border-black rounded-[2rem] p-8 shadow-brutalist-sm">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-black/60 mb-6">Patient Satisfaction Breakdown</h4>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Communication & Empathy', pct: 96 },
-                    { label: 'Treatment Effectiveness', pct: 88 },
-                    { label: 'Appointment Punctuality', pct: 92 },
-                    { label: 'Follow-up Care', pct: 84 },
-                    { label: 'Overall Experience', pct: 91 },
-                  ].map((item, i) => {
-                    const hash = (selectedExpert.id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-                    const adjusted = Math.max(60, Math.min(99, item.pct + (hash + i * 3) % 10 - 4));
-                    return (
-                      <div key={item.label}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-gray-700">{item.label}</span>
-                          <span className="text-xs font-bold text-primary">{adjusted}%</span>
+              {/* RIGHT: Reviews */}
+              <div className="space-y-6">
+                <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400 border-b-2 border-black/5 pb-4">Clinical Testimonials</p>
+                {selectedExpert.reviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {selectedExpert.reviews.map((rev, i) => (
+                      <div key={i} className="bg-aura-cream p-6 rounded-[2rem] border-2 border-black shadow-brutalist-sm relative group">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <p className="font-bold text-sm">{rev.patientName || 'Anonymous'}</p>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{new Date(rev.date).toLocaleDateString()}</p>
+                          </div>
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <span key={s} className="material-symbols-outlined text-xs text-secondary font-bold">{s <= rev.rating ? 'star' : 'star_outline'}</span>
+                            ))}
+                          </div>
                         </div>
-                        <div className="h-3 bg-white rounded-full border border-black/10 overflow-hidden">
-                          <div className="h-full bg-primary rounded-full" style={{ width: `${adjusted}%` }}></div>
-                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed italic">"{rev.comment}"</p>
+                        <span className="material-symbols-outlined absolute -bottom-2 -right-2 text-black/5 text-6xl group-hover:text-primary/10 transition-colors">format_quote</span>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center opacity-40">
+                    <p className="text-sm font-bold italic">No review records found for this clinical branch yet.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -565,63 +583,147 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
         {/* Booking Confirmation Modal */}
         {lockedSlot && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-[3rem] border-4 border-black shadow-brutalist max-w-xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300">
-              <div className="p-8 bg-primary border-b-4 border-black">
-                <h3 className="text-2xl font-display font-bold text-white">Complete Your Booking</h3>
-                <p className="text-white/70 text-sm mt-1">Slot reserved for 10 minutes</p>
+            <div className="bg-white rounded-[3rem] border-4 border-black shadow-brutalist max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300">
+              <div className="p-8 bg-primary border-b-4 border-black flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-display font-bold text-white">Complete Your Booking</h3>
+                  <p className="text-white/70 text-sm mt-1">Slot reserved for 10 minutes</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${bookingFormStep >= 1 ? 'bg-white text-primary border-white' : 'border-white/50 text-white/50'}`}>1</span>
+                  <span className="w-6 h-[2px] bg-white/30"></span>
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${bookingFormStep >= 2 ? 'bg-white text-primary border-white' : 'border-white/50 text-white/50'}`}>2</span>
+                </div>
               </div>
 
-              <div className="p-8 space-y-8">
-                {/* Session Type Selection */}
-                <div className="space-y-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">1. Select Session Type</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    {(['Video', 'Voice', 'Chat'] as const).map(type => (
-                      <button
-                        key={type}
-                        onClick={() => setSelectedSessionType(type)}
-                        className={`p-4 rounded-2xl border-2 border-black text-center transition-all ${selectedSessionType === type ? 'bg-primary text-white scale-105' : 'bg-white hover:bg-gray-50'
-                          }`}
-                      >
-                        <span className="material-symbols-outlined text-2xl mb-1">
-                          {type === 'Video' ? 'videocam' : type === 'Voice' ? 'mic' : 'chat'}
-                        </span>
-                        <p className="text-xs font-bold uppercase">{type}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Prerequisite Form Notice */}
-                {lockedSlot.clinicalForm && (
-                  <div className="space-y-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">2. Prerequisite Form</p>
-                    <div className="bg-aura-cream p-6 rounded-2xl border-2 border-black space-y-4">
-                      <h4 className="font-bold text-lg">{lockedSlot.clinicalForm.title}</h4>
-                      <p className="text-sm text-gray-700">
-                        This form will be sent right after payment and booking confirmation.
-                        You can complete it from your pending forms panel.
-                      </p>
+              <div className="p-8 space-y-6">
+                {bookingFormStep === 1 ? (
+                  <>
+                    {/* Step 1: Patient Details */}
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Step 1 — Patient Information</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Full Name <span className="text-red-500">*</span></label>
+                          <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Enter your full name" className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Age <span className="text-red-500">*</span></label>
+                          <input type="number" value={patientAge} onChange={e => setPatientAge(e.target.value)} placeholder="Age" min="1" max="120" className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Gender <span className="text-red-500">*</span></label>
+                          <select value={patientGender} onChange={e => setPatientGender(e.target.value)} className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors">
+                            <option value="">Select...</option>
+                            <option value="Female">Female</option>
+                            <option value="Male">Male</option>
+                            <option value="Non-binary">Non-binary</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Phone</label>
+                          <input type="tel" value={patientPhone} onChange={e => setPatientPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Email</label>
+                          <input type="email" value={patientEmail} onChange={e => setPatientEmail(e.target.value)} placeholder="email@example.com" className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Reason for Visit <span className="text-red-500">*</span></label>
+                          <select value={bookingReason} onChange={e => setBookingReason(e.target.value)} className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium focus:border-primary transition-colors">
+                            <option value="">Select a reason...</option>
+                            <option value="Anxiety">Anxiety</option>
+                            <option value="Depression">Depression</option>
+                            <option value="Stress Management">Stress Management</option>
+                            <option value="Relationship Issues">Relationship Issues</option>
+                            <option value="Grief & Loss">Grief & Loss</option>
+                            <option value="Self-esteem">Self-esteem</option>
+                            <option value="Sleep Issues">Sleep Issues</option>
+                            <option value="Trauma / PTSD">Trauma / PTSD</option>
+                            <option value="Academic Pressure">Academic Pressure</option>
+                            <option value="Work-Life Balance">Work-Life Balance</option>
+                            <option value="General Consultation">General Consultation</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1 block">Additional Notes</label>
+                          <textarea value={bookingNotes} onChange={e => setBookingNotes(e.target.value)} placeholder="Briefly describe what you'd like to discuss (optional)..." rows={3} className="w-full p-3 border-2 border-black rounded-xl text-sm font-medium resize-none focus:border-primary transition-colors" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Actions */}
-                <div className="flex gap-4 pt-4">
-                  <button
-                    onClick={handleCancelLock}
-                    className="flex-1 py-4 px-6 border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmBooking}
-                    disabled={bookingInProgress}
-                    className="flex-1 py-4 px-6 bg-primary text-white border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest shadow-brutalist-sm hover:-translate-y-1 transition-all disabled:opacity-50"
-                  >
-                    {bookingInProgress ? 'Processing...' : 'Pay & Confirm Booking'}
-                  </button>
-                </div>
+                    <div className="flex gap-4 pt-2">
+                      <button onClick={handleCancelLock} className="flex-1 py-4 px-6 border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors">Cancel</button>
+                      <button onClick={() => setBookingFormStep(2)} disabled={!isPatientFormValid} className="flex-1 py-4 px-6 bg-black text-white border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest shadow-brutalist-sm hover:-translate-y-1 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        Next <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Step 2: Session Type & Confirm */}
+                    {/* Patient summary */}
+                    <div className="bg-aura-cream p-5 rounded-2xl border-2 border-black">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Patient Summary</p>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                        <p><span className="font-bold">Name:</span> {patientName}</p>
+                        <p><span className="font-bold">Age:</span> {patientAge} • {patientGender}</p>
+                        {patientPhone && <p><span className="font-bold">Phone:</span> {patientPhone}</p>}
+                        {patientEmail && <p><span className="font-bold">Email:</span> {patientEmail}</p>}
+                        <p className="col-span-2"><span className="font-bold">Reason:</span> {bookingReason}</p>
+                        {bookingNotes && <p className="col-span-2 text-gray-500 italic text-xs">{bookingNotes}</p>}
+                      </div>
+                    </div>
+
+                    {/* Session Type Selection */}
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Select Session Type</p>
+                      <div className="grid grid-cols-3 gap-4">
+                        {(['Video', 'Voice', 'Chat'] as const).map(type => (
+                          <button key={type} onClick={() => setSelectedSessionType(type)} className={`p-4 rounded-2xl border-2 border-black text-center transition-all ${selectedSessionType === type ? 'bg-primary text-white scale-105' : 'bg-white hover:bg-gray-50'}`}>
+                            <span className="material-symbols-outlined text-2xl mb-1">{type === 'Video' ? 'videocam' : type === 'Voice' ? 'mic' : 'chat'}</span>
+                            <p className="text-xs font-bold uppercase">{type}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Prerequisite Form Notice */}
+                    {lockedSlot.clinicalForm && (
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Prerequisite Form</p>
+                        <div className="bg-aura-cream p-6 rounded-2xl border-2 border-black space-y-4">
+                          <h4 className="font-bold text-lg">{lockedSlot.clinicalForm.title}</h4>
+                          <p className="text-sm text-gray-700">This form will be sent right after payment and booking confirmation. You can complete it from your pending forms panel.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Appointment details */}
+                    <div className="bg-white border-2 border-black/10 p-4 rounded-2xl">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center">
+                          <span className="material-symbols-outlined text-white">event_available</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">{selectedExpert.name}</p>
+                          <p className="text-xs text-gray-500">{new Date(lockedSlot.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })} • {selectedSessionType}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 pt-2">
+                      <button onClick={() => setBookingFormStep(1)} className="flex-1 py-4 px-6 border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors flex items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-sm">arrow_back</span> Back
+                      </button>
+                      <button onClick={handleConfirmBooking} disabled={bookingInProgress} className="flex-1 py-4 px-6 bg-primary text-white border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest shadow-brutalist-sm hover:-translate-y-1 transition-all disabled:opacity-50">
+                        {bookingInProgress ? 'Processing...' : 'Pay & Confirm Booking'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -647,7 +749,7 @@ const Experts: React.FC<ExpertsProps> = ({ onBack, isLoggedIn, onAuthRequired })
                 )}
               </div>
               <button
-                onClick={() => { setBookingSuccess(null); setSelectedExpertId(null); setBookingDate(null); }}
+                onClick={() => { setBookingSuccess(null); setSelectedExpertId(null); setBookingDate(null); resetBookingForm(); }}
                 className="w-full py-4 bg-black text-white border-2 border-black rounded-2xl font-bold text-sm uppercase tracking-widest hover:-translate-y-1 transition-all"
               >
                 Done

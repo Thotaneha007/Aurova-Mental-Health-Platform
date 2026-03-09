@@ -1264,13 +1264,14 @@ const DoctorDashboard: React.FC<DoctorDashboardProps> = ({ name, onNavigate }) =
           <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">grid_view</span> Doctor Modules
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {([
               { view: AppView.DOCTOR_PROFILE_FORM,    label: 'Profile',          icon: 'badge',            color: 'bg-card-purple' },
               { view: AppView.CLINICAL_FORM_TEMPLATE, label: 'Clinical Forms',   icon: 'description',      color: 'bg-card-blue' },
               { view: AppView.CONSULTATION_NOTES,     label: 'Consultation Notes', icon: 'clinical_notes',  color: 'bg-card-green' },
               { view: AppView.PATIENT_INTAKE_REVIEW,  label: 'Intake Reviews',   icon: 'assignment_ind',   color: 'bg-rose-100' },
               { view: AppView.DOCTOR_REPORTS,         label: 'Reports',          icon: 'analytics',        color: 'bg-black' },
+              { view: AppView.DOCTOR_MOOD_INQUIRY,   label: 'Mood Reviews',     icon: 'monitor_heart',    color: 'bg-card-yellow' },
             ] as const).map(m => (
               <button
                 key={m.view}

@@ -35,6 +35,8 @@ import PatientIntakeReview from './views/PatientIntakeReview';
 import DoctorReports from './views/DoctorReports';
 import MoodForm from './views/MoodForm';
 import BookingPage from './views/BookingPage';
+import PatientMoodForm from './views/PatientMoodForm';
+import DoctorMoodInquiry from './views/DoctorMoodInquiry';
 
 const BackgroundAtmosphere: React.FC = () => {
   const elements = useMemo(() => {
@@ -334,6 +336,14 @@ const App: React.FC = () => {
         return <DoctorReports onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
       case AppView.MOOD_MANAGEMENT:
         return <MoodForm />;
+      case AppView.PATIENT_MOOD_FORM:
+        return <PatientMoodForm
+          onBack={() => handleNavigate(AppView.DASHBOARD)}
+          isLoggedIn={isLoggedIn}
+          onAuthRequired={() => handleNavigate(AppView.SIGNUP)}
+        />;
+      case AppView.DOCTOR_MOOD_INQUIRY:
+        return <DoctorMoodInquiry onBack={() => handleNavigate(AppView.DOCTOR_DASHBOARD)} />;
       case AppView.BOOKING_PAGE:
         return <BookingPage />;
       case AppView.LOGIN:
@@ -401,6 +411,9 @@ const App: React.FC = () => {
               </button>
               <button onClick={() => handleNavigate(AppView.MOOD_MANAGEMENT)} title="Mood Manager" className={navIconClass(AppView.MOOD_MANAGEMENT)}>
                 <span className="material-icons-outlined text-xl">mood</span>
+              </button>
+              <button onClick={() => handleNavigate(AppView.PATIENT_MOOD_FORM)} title="Mood Assessment" className={navIconClass(AppView.PATIENT_MOOD_FORM)}>
+                <span className="material-symbols-outlined text-xl">monitor_heart</span>
               </button>
               <button onClick={() => handleNavigate(AppView.BOOKING_PAGE)} title="Book Consultation" className={navIconClass(AppView.BOOKING_PAGE)}>
                 <span className="material-icons-outlined text-xl">calendar_month</span>

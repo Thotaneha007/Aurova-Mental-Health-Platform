@@ -34,7 +34,9 @@ export enum AppView {
   ROUTINE_PROGRESS = 'routine_progress',
   SOULFEED_INTERACT = 'soulfeed_interact',
   MOOD_MANAGEMENT = 'mood_management',
-  BOOKING_PAGE = 'booking_page'
+  BOOKING_PAGE = 'booking_page',
+  PATIENT_MOOD_FORM = 'patient_mood_form',
+  DOCTOR_MOOD_INQUIRY = 'doctor_mood_inquiry'
 }
 
 export interface JournalEntry {

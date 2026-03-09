@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aurova - Project Poster</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Playfair+Display:wght@700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f0eb;
+      color: #1a1a1a;
+    }
+
+    .poster {
+      width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border: 4px solid #000;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: grid;
+      grid-template-columns: 180px 120px 1fr 1fr;
+      border-bottom: 4px solid #000;
+      background: #fff;
+    }
+    .header-logos {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-right: 2px solid #000;
+      background: #fff;
+      gap: 4px;
+    }
+    .header-logos .amrita-text {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .header-logos .se-badge {
+      background: #1a1a8e;
+      color: white;
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 3px;
+    }
+    .header-feedback {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-right: 2px solid #000;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      gap: 6px;
+    }
+    .qr-placeholder {
+      width: 60px;
+      height: 60px;
+      border: 2px solid #000;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      text-align: center;
+      background: #f9f9f9;
+    }
+    .header-complexity {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-right: 2px solid #000;
+      background: #fff;
+    }
+    .header-complexity .label {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .header-complexity .value {
+      font-size: 22px;
+      font-weight: 900;
+      color: #FF7D44;
+      margin-top: 4px;
+    }
+    .header-title {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 20px;
+      text-align: center;
+    }
+    .header-title .label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .header-title h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #1a1a1a;
+    }
+    .header-title h1 span { color: #FF7D44; }
+
+    /* ── ROW: Problem + Target Users ── */
+    .row-dark {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      background: #0a0a2e;
+      color: white;
+      border-bottom: 3px solid #000;
+    }
+    .row-dark > div {
+      padding: 20px 24px;
+    }
+    .row-dark > div:not(:last-child) {
+      border-right: 2px solid rgba(255,255,255,0.15);
+    }
+    .section-label {
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 12px;
+      color: #FF7D44;
+    }
+    .section-label-white {
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+    .problem-text {
+      font-size: 14px;
+      line-height: 1.7;
+      font-weight: 500;
+    }
+    .target-list {
+      list-style: none;
+      font-size: 13px;
+      line-height: 2;
+      font-weight: 500;
+    }
+    .target-list li::before {
+      content: "→ ";
+      color: #FF7D44;
+      font-weight: 900;
+    }
+    .qr-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      padding: 15px !important;
+    }
+    .qr-col .qr-box {
+      width: 70px;
+      height: 70px;
+      border: 2px solid #000;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+      background: #f9f9f9;
+      color: #333;
+    }
+    .qr-label {
+      font-size: 8px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #333;
+      text-align: center;
+    }
+
+    /* ── DIAGRAM SECTION ── */
+    .diagram-header {
+      background: #1a1a8e;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      border-bottom: 3px solid #000;
+    }
+    .diagram-body {
+      padding: 30px 40px;
+      background: #fafafa;
+      border-bottom: 3px solid #000;
+      min-height: 420px;
+    }
+
+    /* ── Architecture Diagram SVG Styles ── */
+    .arch-diagram { width: 100%; }
+    .arch-box {
+      rx: 12;
+      ry: 12;
+      stroke: #1a1a1a;
+      stroke-width: 2;
+    }
+    .arch-text {
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      font-size: 11px;
+    }
+    .arch-subtext {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      text-anchor: middle;
+      dominant-baseline: central;
+      font-size: 8px;
+      fill: #555;
+    }
+    .arch-arrow {
+      stroke: #333;
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+    .arch-arrow-dashed {
+      stroke: #999;
+      stroke-width: 1.5;
+      fill: none;
+      stroke-dasharray: 6 3;
+      marker-end: url(#arrowhead-gray);
+    }
+    .arch-group-label {
+      font-family: 'Inter', sans-serif;
+      font-weight: 900;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      fill: #999;
+    }
+
+    /* ── BOTTOM SECTIONS ── */
+    .row-solution-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #0a0a2e;
+      color: white;
+      border-bottom: 0;
+    }
+    .row-solution-header > div {
+      padding: 8px 24px;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-align: center;
+    }
+    .row-solution-header > div:first-child {
+      border-right: 2px solid rgba(255,255,255,0.15);
+    }
+    .row-solution {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 3px solid #000;
+    }
+    .solution-left {
+      padding: 24px;
+      border-right: 3px solid #000;
+    }
+    .solution-right {
+      padding: 24px;
+    }
+    .feature-card {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f5f0eb;
+      border: 2px solid #000;
+      border-radius: 12px;
+    }
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      border: 2px solid #000;
+    }
+    .feature-card h4 {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .feature-card p {
+      font-size: 10px;
+      color: #555;
+      line-height: 1.5;
+    }
+    .future-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .future-num {
+      width: 24px;
+      height: 24px;
+      background: #FF7D44;
+      color: white;
+      font-size: 11px;
+      font-weight: 900;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .future-item h4 {
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .future-item p {
+      font-size: 10px;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    /* ── TEAM SECTION ── */
+    .team-section {
+      display: flex;
+      justify-content: flex-end;
+      background: #fff;
+      border-top: 0;
+    }
+    .team-box {
+      background: #1a1a8e;
+      color: white;
+      padding: 16px 24px;
+      min-width: 400px;
+    }
+    .team-box .team-label {
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 8px;
+    }
+    .team-members {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .team-member {
+      background: rgba(255,255,255,0.1);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .team-member span {
+      font-size: 9px;
+      opacity: 0.6;
+      display: block;
+    }
+
+    /* ── TECH STACK BAR ── */
+    .tech-bar {
+      display: flex;
+      gap: 0;
+      background: #111;
+      border-top: 3px solid #000;
+    }
+    .tech-tag {
+      padding: 6px 16px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: white;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @media print {
+      body { background: white; }
+      .poster { border: none; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="poster">
+
+    <!-- ════════ HEADER ════════ -->
+    <div class="header">
+      <div class="header-logos">
+        <div class="amrita-text">Amrita Vishwa<br/>Vidyapeetham</div>
+        <div class="se-badge">SE — AMRITA</div>
+        <div style="font-size:8px; color:#888; margin-top:2px;">School of Engineering</div>
+      </div>
+      <div class="header-feedback">
+        Feedback<br/>QR Code
+        <div class="qr-placeholder">QR<br/>Here</div>
+      </div>
+      <div class="header-complexity">
+        <div class="label">Problem Complexity</div>
+        <div class="value">High</div>
+        <div style="font-size:9px; color:#888; margin-top:2px;">Full-Stack + AI + APIs</div>
+      </div>
+      <div class="header-title">
+        <div class="label">Detailed Problem Title</div>
+        <h1><span>Aurova</span> — AI-Powered Mental Health Platform<br/>for Women, Youth &amp; Individuals</h1>
+      </div>
+    </div>
+
+    <!-- ════════ PROBLEM + TARGET USERS ════════ -->
+    <div class="row-dark">
+      <div>
+        <div class="section-label">Problem Statement</div>
+        <p class="problem-text">
+          Mental health support in India remains <strong>inaccessible, expensive, and stigmatized</strong>
+          — especially for women, teens, and rural communities. Existing platforms like BetterHelp cost
+          $65–$100/month, are English-only, Western-centric, and offer no anonymity. <strong>68% of
+          Indian women</strong> and <strong>74% of youth</strong> report unaddressed mental health
+          concerns due to cost, shame, or lack of culturally relevant care. There is an urgent need
+          for a <strong>free, anonymous, multi-language, AI-powered</strong> mental health platform
+          built for the Indian context.
+        </p>
+      </div>
+      <div>
+        <div class="section-label">Target Users</div>
+        <ul class="target-list">
+          <li><strong>Women</strong> — college students, professionals, homemakers facing burnout &amp; identity struggles</li>
+          <li><strong>Youth (13–25)</strong> — dealing with exam stress, social media anxiety, self-discovery</li>
+          <li><strong>Individuals</strong> — anyone seeking stigma-free, private mental health support</li>
+          <li><strong>Doctors</strong> — verified mental health professionals managing practice &amp; patients</li>
+          <li><strong>Anonymous users</strong> — those who want help without revealing identity</li>
+        </ul>
+      </div>
+      <div class="qr-col">
+        <div class="qr-box">App<br/>QR<br/>Code</div>
+        <div class="qr-label">Live App</div>
+        <div class="qr-box">GitHub<br/>QR<br/>Code</div>
+        <div class="qr-label">Source Code</div>
+      </div>
+    </div>
+
+    <!-- ════════ ARCHITECTURE DIAGRAM ════════ -->
+    <div class="diagram-header">Architecture / System Diagram</div>
+    <div class="diagram-body">
+      <svg viewBox="0 0 1100 400" class="arch-diagram" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#333" />
+          </marker>
+          <marker id="arrowhead-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#999" />
+          </marker>
+        </defs>
+
+        <!-- Group Labels -->
+        <text x="120" y="18" class="arch-group-label">Frontend (React + Vite)</text>
+        <text x="500" y="18" class="arch-group-label">Backend (Node.js + Express)</text>
+        <text x="900" y="18" class="arch-group-label">External Services</text>
+
+        <!-- ── FRONTEND LAYER ── -->
+        <!-- User Browser -->
+        <rect x="20" y="30" width="240" height="50" class="arch-box" fill="#FFF3ED" />
+        <text x="140" y="50" class="arch-text">🌐 User Browser</text>
+        <text x="140" y="65" class="arch-subtext">React 19 + TypeScript + Tailwind CSS</text>
+
+        <!-- Frontend Components -->
+        <rect x="20" y="100" width="110" height="42" class="arch-box" fill="#DBEAFE" />
+        <text x="75" y="117" class="arch-text" font-size="9">Landing</text>
+        <text x="75" y="130" class="arch-subtext" font-size="7">Hero + Analytics</text>
+
+        <rect x="140" y="100" width="110" height="42" class="arch-box" fill="#DBEAFE" />
+        <text x="195" y="117" class="arch-text" font-size="9">Dashboard</text>
+        <text x="195" y="130" class="arch-subtext" font-size="7">Mood + Journal</text>
+
+        <rect x="20" y="152" width="110" height="42" class="arch-box" fill="#FEF3C7" />
+        <text x="75" y="169" class="arch-text" font-size="9">AI Chat</text>
+        <text x="75" y="182" class="arch-subtext" font-size="7">Context-Trained</text>
+
+        <rect x="140" y="152" width="110" height="42" class="arch-box" fill="#FEF3C7" />
+        <text x="195" y="169" class="arch-text" font-size="9">Experts</text>
+        <text x="195" y="182" class="arch-subtext" font-size="7">Booking + Charts</text>
+
+        <rect x="20" y="204" width="110" height="42" class="arch-box" fill="#E0E7FF" />
+        <text x="75" y="221" class="arch-text" font-size="9">Community</text>
+        <text x="75" y="234" class="arch-subtext" font-size="7">Circle Support</text>
+
+        <rect x="140" y="204" width="110" height="42" class="arch-box" fill="#E0E7FF" />
+        <text x="195" y="221" class="arch-text" font-size="9">Wellness Hub</text>
+        <text x="195" y="234" class="arch-subtext" font-size="7">Reports + MoodForm</text>
+
+        <!-- Additional frontend -->
+        <rect x="20" y="260" width="240" height="36" class="arch-box" fill="#FCE7F3" />
+        <text x="140" y="275" class="arch-text" font-size="9">🔐 Firebase Auth (Google OAuth + Anonymous)</text>
+
+        <rect x="20" y="308" width="240" height="36" class="arch-box" fill="#F3E8FF" />
+        <text x="140" y="322" class="arch-text" font-size="9">🎙️ Voice I/O — TTS / STT (Multi-language)</text>
+
+        <rect x="20" y="356" width="240" height="36" class="arch-box" fill="#ECFDF5" />
+        <text x="140" y="370" class="arch-text" font-size="9">📊 MUI DataGrid — Booking Management</text>
+
+        <!-- ── ARROWS Frontend → Backend ── -->
+        <line x1="260" y1="160" x2="370" y2="100" class="arch-arrow" />
+        <line x1="260" y1="220" x2="370" y2="200" class="arch-arrow" />
+        <line x1="260" y1="325" x2="370" y2="290" class="arch-arrow" />
+
+        <!-- ── BACKEND LAYER ── -->
+        <!-- API Gateway -->
+        <rect x="370" y="30" width="280" height="50" class="arch-box" fill="#FFF7ED" />
+        <text x="510" y="50" class="arch-text">⚡ Express.js API Gateway</text>
+        <text x="510" y="65" class="arch-subtext">Port 5001 — REST + Middleware + CORS</text>
+
+        <!-- API Routes -->
+        <rect x="370" y="95" width="130" height="38" class="arch-box" fill="#DBEAFE" />
+        <text x="435" y="110" class="arch-text" font-size="9">/api/auth</text>
+        <text x="435" y="123" class="arch-subtext" font-size="7">JWT + Firebase</text>
+
+        <rect x="510" y="95" width="140" height="38" class="arch-box" fill="#DBEAFE" />
+        <text x="580" y="110" class="arch-text" font-size="9">/api/chat</text>
+        <text x="580" y="123" class="arch-subtext" font-size="7">Groq LLM + Context</text>
+
+        <rect x="370" y="145" width="130" height="38" class="arch-box" fill="#FEF3C7" />
+        <text x="435" y="160" class="arch-text" font-size="9">/api/doctors</text>
+        <text x="435" y="173" class="arch-subtext" font-size="7">CRUD + Scheduling</text>
+
+        <rect x="510" y="145" width="140" height="38" class="arch-box" fill="#FEF3C7" />
+        <text x="580" y="160" class="arch-text" font-size="9">/api/sarvam</text>
+        <text x="580" y="173" class="arch-subtext" font-size="7">TTS + STT Proxy</text>
+
+        <rect x="370" y="195" width="130" height="38" class="arch-box" fill="#E0E7FF" />
+        <text x="435" y="210" class="arch-text" font-size="9">/api/journal</text>
+        <text x="435" y="223" class="arch-subtext" font-size="7">Entries + Insights</text>
+
+        <rect x="510" y="195" width="140" height="38" class="arch-box" fill="#E0E7FF" />
+        <text x="580" y="210" class="arch-text" font-size="9">/api/mood</text>
+        <text x="580" y="223" class="arch-subtext" font-size="7">Mood Tracking</text>
+
+        <rect x="370" y="245" width="280" height="38" class="arch-box" fill="#ECFDF5" />
+        <text x="510" y="260" class="arch-text" font-size="9">/api/community + /api/wellness + /api/booking</text>
+        <text x="510" y="273" class="arch-subtext" font-size="7">Community Posts, Wellness Resources, Patient Forms</text>
+
+        <!-- Middleware -->
+        <rect x="370" y="296" width="280" height="34" class="arch-box" fill="#FEE2E2" />
+        <text x="510" y="310" class="arch-text" font-size="9">🛡️ Auth Middleware — JWT Verify + Role-Based Access + COOP Headers</text>
+
+        <!-- Database -->
+        <rect x="390" y="345" width="240" height="48" class="arch-box" fill="#059669" />
+        <text x="510" y="362" class="arch-text" fill="white" font-size="11">🗄️ MongoDB + Mongoose</text>
+        <text x="510" y="378" class="arch-subtext" fill="rgba(255,255,255,0.7)" font-size="8">Users, Sessions, Moods, Journals, Bookings, Doctors</text>
+
+        <!-- Arrow API → DB -->
+        <line x1="510" y1="330" x2="510" y2="345" class="arch-arrow" />
+
+        <!-- ── EXTERNAL SERVICES ── -->
+        <rect x="730" y="30" width="180" height="48" class="arch-box" fill="#FF7D44" />
+        <text x="820" y="48" class="arch-text" fill="white">🤖 Groq Cloud</text>
+        <text x="820" y="63" class="arch-subtext" fill="rgba(255,255,255,0.7)">LLaMA 3.1 8B — Chat AI</text>
+
+        <rect x="730" y="92" width="180" height="48" class="arch-box" fill="#6366F1" />
+        <text x="820" y="110" class="arch-text" fill="white">🎤 Sarvam AI</text>
+        <text x="820" y="125" class="arch-subtext" fill="rgba(255,255,255,0.7)">TTS (bulbul:v2) + STT (saaras:v2)</text>
+
+        <rect x="730" y="154" width="180" height="48" class="arch-box" fill="#F59E0B" />
+        <text x="820" y="172" class="arch-text" fill="white">🔥 Firebase</text>
+        <text x="820" y="187" class="arch-subtext" fill="rgba(255,255,255,0.7)">Auth + Admin SDK + Google OAuth</text>
+
+        <!-- Context Dataset Box -->
+        <rect x="730" y="220" width="180" height="48" class="arch-box" fill="#1a1a1a" />
+        <text x="820" y="238" class="arch-text" fill="white" font-size="9">📋 Patient Q&A Dataset</text>
+        <text x="820" y="253" class="arch-subtext" fill="rgba(255,255,255,0.6)" font-size="7">25 Context-Trained Responses</text>
+
+        <!-- Sarvam Languages -->
+        <rect x="925" y="92" width="160" height="48" class="arch-box" fill="#EEF2FF" />
+        <text x="1005" y="107" class="arch-text" font-size="9">Languages</text>
+        <text x="1005" y="120" class="arch-subtext" font-size="7">🇮🇳 Telugu · Hindi · Tamil</text>
+        <text x="1005" y="131" class="arch-subtext" font-size="7">English · Kannada +</text>
+
+        <!-- Data Flow Labels -->
+        <rect x="730" y="290" width="180" height="60" class="arch-box" fill="#F0FDF4" />
+        <text x="820" y="310" class="arch-text" font-size="9">🔄 Data Flow</text>
+        <text x="820" y="325" class="arch-subtext" font-size="7">REST API (JSON) · WebSockets</text>
+        <text x="820" y="338" class="arch-subtext" font-size="7">Base64 Audio · JWT Tokens</text>
+
+        <!-- Key Features Box -->
+        <rect x="730" y="360" width="355" height="36" class="arch-box" fill="#0a0a2e" />
+        <text x="908" y="378" class="arch-text" fill="white" font-size="9">🏆 Free · Anonymous · Multi-Lang · AI-Powered · India-First · Context-Trained</text>
+
+        <!-- ── ARROWS Backend → External ── -->
+        <line x1="650" y1="112" x2="730" y2="54" class="arch-arrow" />
+        <line x1="650" y1="162" x2="730" y2="116" class="arch-arrow" />
+        <line x1="650" y1="112" x2="730" y2="178" class="arch-arrow-dashed" />
+        <line x1="910" y1="116" x2="925" y2="116" class="arch-arrow-dashed" />
+
+        <!-- Arrow Chat → Dataset -->
+        <line x1="650" y1="120" x2="730" y2="240" class="arch-arrow-dashed" />
+      </svg>
+    </div>
+
+    <!-- ════════ PROPOSED SOLUTION + FUTURE ════════ -->
+    <div class="row-solution-header">
+      <div>Proposed Solution — Key Features</div>
+      <div>Future Enhancements</div>
+    </div>
+    <div class="row-solution">
+      <div class="solution-left">
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#DBEAFE;">🤖</div>
+          <div>
+            <h4>Context-Trained AI Chat</h4>
+            <p>AI companion trained on patient Q&A dataset with 25 hardcoded context responses. Falls back to Groq LLaMA 3.1 for general queries. Multi-language voice support via Sarvam AI.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#FEF3C7;">🎤</div>
+          <div>
+            <h4>Multi-Language TTS &amp; STT</h4>
+            <p>Text-to-Speech and Speech-to-Text in Telugu, Hindi, Tamil, English &amp; more using Sarvam AI (bulbul:v2 + saaras:v2). Browser fallback for reliability.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#E0E7FF;">🔒</div>
+          <div>
+            <h4>Anonymous Mode</h4>
+            <p>Full-featured anonymous access — no email, no identity. Users create shadow nicknames for stigma-free support. Firebase Auth + custom JWT tokens.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#ECFDF5;">👩‍⚕️</div>
+          <div>
+            <h4>Expert Booking + Analytics</h4>
+            <p>Verified doctor directory with real-time slot booking, patient volume charts, feedback ratings, and satisfaction breakdowns per doctor.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#FCE7F3;">📊</div>
+          <div>
+            <h4>Mood Tracking &amp; Reports</h4>
+            <p>Daily mood logging, journal entries with sentiment analysis, wellness hub with personalized insights. MUI DataGrid for booking management.</p>
+          </div>
+        </div>
+      </div>
+      <div class="solution-right">
+        <div class="future-item">
+          <div class="future-num">1</div>
+          <div>
+            <h4>Fine-Tuned LLM on Clinical Data</h4>
+            <p>Train a domain-specific model on anonymized patient conversations for more accurate, empathetic responses instead of hardcoded context matches.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">2</div>
+          <div>
+            <h4>Video &amp; Voice Consultations</h4>
+            <p>Real-time WebRTC video/audio sessions between patients and verified doctors, with end-to-end encryption and recording consent.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">3</div>
+          <div>
+            <h4>Wearable Integration</h4>
+            <p>Connect with smartwatches to monitor heart rate, sleep patterns, and stress indicators for proactive mental health alerts.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">4</div>
+          <div>
+            <h4>Regional Language Expansion</h4>
+            <p>Add support for Bengali, Marathi, Malayalam, Gujarati, and Punjabi — covering 90%+ of India's population linguistically.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">5</div>
+          <div>
+            <h4>AI Crisis Prediction</h4>
+            <p>ML-based early warning system analyzing mood trends, journal sentiment, and chat patterns to flag at-risk users before crisis situations.</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">6</div>
+          <div>
+            <h4>Corporate Wellness Programs</h4>
+            <p>B2B tier for companies to provide employees with anonymous mental health support, aggregated analytics, and wellness workshops.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TECH STACK BAR ════════ -->
+    <div class="tech-bar">
+      <div class="tech-tag" style="background:#3B82F6;">React 19</div>
+      <div class="tech-tag" style="background:#8B5CF6;">TypeScript</div>
+      <div class="tech-tag" style="background:#06B6D4;">Tailwind CSS</div>
+      <div class="tech-tag" style="background:#22C55E;">Node.js</div>
+      <div class="tech-tag" style="background:#059669;">MongoDB</div>
+      <div class="tech-tag" style="background:#F59E0B;">Firebase</div>
+      <div class="tech-tag" style="background:#FF7D44;">Groq AI</div>
+      <div class="tech-tag" style="background:#6366F1;">Sarvam AI</div>
+      <div class="tech-tag" style="background:#EC4899;">MUI</div>
+      <div class="tech-tag" style="background:#1a1a1a;">Vite</div>
+    </div>
+
+    <!-- ════════ TEAM ════════ -->
+    <div class="team-section">
+      <div class="team-box">
+        <div class="team-label">Team Details</div>
+        <div class="team-members">
+          <div class="team-member">Sanhitha A.C.<span>Lead Dev</span></div>
+          <div class="team-member">Team Member 2<span>Frontend</span></div>
+          <div class="team-member">Team Member 3<span>Backend</span></div>
+          <div class="team-member">Team Member 4<span>AI/ML</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="text-align:center; padding:20px; font-size:12px; color:#888;">
+    <strong>Instructions:</strong> Open this file in Chrome → Press <kbd>Ctrl+P</kbd> → Set to "Save as PDF" → Layout: Landscape → Margins: None → Save.
+  </div>
+</body>
+</html>

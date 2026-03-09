@@ -259,18 +259,54 @@ const Chat: React.FC<ChatProps> = ({ history, setHistory, onBack, isLoggedIn, on
     }
   }, [input, isTyping, isLoggedIn, onAuthRequired, setHistory, sessionId, autoTTS, speakText, loadSessions, voiceLang, getContextResponse]);
 
+  // Convert any audio blob to WAV (PCM 16-bit) for Sarvam API compatibility
+  const convertToWav = async (blob: Blob): Promise<Blob> => {
+    const arrayBuf = await blob.arrayBuffer();
+    const audioCtx = new AudioContext({ sampleRate: 16000 });
+    const decoded = await audioCtx.decodeAudioData(arrayBuf);
+    const pcm = decoded.getChannelData(0);
+    const numSamples = pcm.length;
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+    // WAV header
+    const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, 16000, true); // sample rate
+    view.setUint32(28, 32000, true); // byte rate
+    view.setUint16(32, 2, true); // block align
+    view.setUint16(34, 16, true); // bits per sample
+    writeStr(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, pcm[i]));
+      view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    audioCtx.close();
+    return new Blob([buffer], { type: 'audio/wav' });
+  };
+
   const startRecording = async () => {
     if (isRecording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        setIsRecording(false);
+        const rawBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
+        if (rawBlob.size < 1000) return; // skip micro-recordings from accidental clicks
         try {
-          const transcript = await sarvamService.transcribeAudio(blob, voiceLangRef.current);
+          const wavBlob = await convertToWav(rawBlob);
+          const transcript = await sarvamService.transcribeAudio(wavBlob, voiceLangRef.current);
           if (transcript) setInput(prev => prev ? `${prev} ${transcript}` : transcript);
           else {
             setTtsError('No speech detected. Try speaking louder or closer to the mic.');
@@ -281,7 +317,6 @@ const Chat: React.FC<ChatProps> = ({ history, setHistory, onBack, isLoggedIn, on
           setTtsError('Speech recognition failed. Please type your message instead.');
           setTimeout(() => setTtsError(null), 3000);
         }
-        setIsRecording(false);
       };
       recorder.start();
       mediaRecorderRef.current = recorder;

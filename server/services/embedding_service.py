@@ -111,7 +111,7 @@ def health():
     return jsonify({'status': 'ok', 'model': 'all-MiniLM-L6-v2', 'stored': len(_memory_store)})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('EMBEDDING_PORT', 5002))
     print(f"🚀 Embedding service starting on port {port}...")
     print("📦 Model: all-MiniLM-L6-v2 (384 dimensions)")
     app.run(host='0.0.0.0', port=port, debug=False)

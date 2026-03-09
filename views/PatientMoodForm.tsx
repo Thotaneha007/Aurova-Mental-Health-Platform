@@ -6,6 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 interface PatientMoodFormProps {
   onBack: () => void;
   isLoggedIn: boolean;
@@ -23,7 +25,7 @@ const MOOD_OPTIONS = [
 const SYMPTOM_TAGS = ['Anxiety', 'Sadness', 'Irritability', 'Mood Swings', 'Lack of Motivation', 'Racing Thoughts', 'Panic Attacks', 'Fatigue', 'Restlessness', 'Numbness', 'Hopelessness', 'Difficulty Concentrating'];
 const COPING_TAGS = ['Exercise', 'Meditation', 'Talking to Friends', 'Journaling', 'Deep Breathing', 'Nature Walk', 'Music', 'Reading', 'Professional Help', 'None'];
 
-const API = 'http://localhost:5001/api/mood-assessments';
+const API = `${API_BASE}/api/mood-assessments`;
 
 const PatientMoodForm: React.FC<PatientMoodFormProps> = ({ onBack, isLoggedIn, onAuthRequired }) => {
   const [step, setStep] = useState(1);

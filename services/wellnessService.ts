@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { authService } from './auth';
 
-const BASE = 'http://localhost:5001/api/wellness';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const BASE = `${API_BASE}/api/wellness`;
 
 const authHeaders = () => ({
     headers: { Authorization: `Bearer ${authService.getToken()}` }

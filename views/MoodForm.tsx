@@ -13,6 +13,8 @@ import {
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 interface Mood {
   moodId: string;
   userId: string;
@@ -47,7 +49,7 @@ const MoodForm = () => {
   // ---------------- FETCH ----------------
   const fetchMoods = async () => {
     try {
-      const res = await axios.get("http://localhost:5001/api/moods");
+      const res = await axios.get(`${API_BASE}/api/moods`);
       setRows(res.data);
     } catch (error) {
       alert("Failed to fetch moods");
@@ -88,7 +90,7 @@ const MoodForm = () => {
 
     try {
       if (actionType === "Insert") {
-        await axios.post("http://localhost:5001/api/moods", formData);
+        await axios.post(`${API_BASE}/api/moods`, formData);
         alert("Mood inserted successfully!");
       }
 
@@ -98,7 +100,7 @@ const MoodForm = () => {
           return;
         }
         await axios.put(
-          `http://localhost:5001/api/moods/${selectedId}`,
+          `${API_BASE}/api/moods/${selectedId}`,
           formData
         );
         alert("Mood updated successfully!");
@@ -110,7 +112,7 @@ const MoodForm = () => {
           return;
         }
         await axios.delete(
-          `http://localhost:5001/api/moods/${selectedId}`
+          `${API_BASE}/api/moods/${selectedId}`
         );
         alert("Mood deleted successfully!");
       }
@@ -133,7 +135,7 @@ const MoodForm = () => {
 
     try {
       const res = await axios.get(
-        `http://localhost:5001/api/moods/${formData.moodId}`
+        `${API_BASE}/api/moods/${formData.moodId}`
       );
       setFormData(res.data);
       setSelectedId(res.data.moodId);

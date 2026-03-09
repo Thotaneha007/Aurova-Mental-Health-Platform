@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 interface DoctorMoodInquiryProps {
   onBack: () => void;
 }
@@ -17,7 +19,7 @@ const MOOD_LABELS: Record<string, { emoji: string; label: string; color: string 
   great: { emoji: '🤩', label: 'Great', color: 'bg-green-500' },
 };
 
-const API = 'http://localhost:5001/api/mood-assessments';
+const API = `${API_BASE}/api/mood-assessments`;
 
 const DoctorMoodInquiry: React.FC<DoctorMoodInquiryProps> = ({ onBack }) => {
   const [assessments, setAssessments] = useState<any[]>([]);
